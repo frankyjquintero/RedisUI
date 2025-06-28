@@ -60,10 +60,10 @@ app.UseRedisUI(new RedisUISettings
 ```
 
 **UI**
-![image](https://github.com/user-attachments/assets/fe86c26b-8e66-4f21-b3ed-d08c5d28e03c)
+![image](https://raw.githubusercontent.com/frankyjquintero/RedisUI/refs/heads/main/Images/460253727-fe86c26b-8e66-4f21-b3ed-d08c5d28e03c.png)
 
 **Server Statistics**
-![image](https://github.com/user-attachments/assets/1a9ed6db-bbe7-41ec-92e9-701ed37bae1b)
+![image](https://raw.githubusercontent.com/frankyjquintero/RedisUI/refs/heads/main/Images/460253801-1a9ed6db-bbe7-41ec-92e9-701ed37bae1b.png)
 
 
 👉 You can review the updated source and commits at [github.com/frankyjquintero/RedisUI](https://github.com/frankyjquintero/RedisUI)
