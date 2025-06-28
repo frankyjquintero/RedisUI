@@ -76,26 +76,28 @@ namespace RedisUI
             #region statistics
             if (context.Request.Path.ToString() == $"{_settings.Path}/statistics")
             {
-                var serverInfo = await redisDb.ExecuteAsync("INFO", "SERVER");
-                var memoryInfo = await redisDb.ExecuteAsync("INFO", "MEMORY");
-                var statsInfo = await redisDb.ExecuteAsync("INFO", "STATS");
-                var allInfo = await redisDb.ExecuteAsync("INFO");
+                var serverTask = redisDb.ExecuteAsync("INFO", "SERVER");
+                var memoryTask = redisDb.ExecuteAsync("INFO", "MEMORY");
+                var statsTask = redisDb.ExecuteAsync("INFO", "STATS");
+                var allTask = redisDb.ExecuteAsync("INFO");
+
+                await Task.WhenAll(serverTask, memoryTask, statsTask, allTask);
 
                 var model = new StatisticsVm
                 {
                     Keyspaces = keyspaces,
-                    Server = ServerModel.Instance(serverInfo.ToString()),
-                    Memory = MemoryModel.Instance(memoryInfo.ToString()),
-                    Stats = StatsModel.Instance(statsInfo.ToString()),
-                    AllInfo = allInfo.ToString().ToInfo()
+                    Server = ServerModel.Instance(serverTask.Result.ToString()),
+                    Memory = MemoryModel.Instance(memoryTask.Result.ToString()),
+                    Stats = StatsModel.Instance(statsTask.Result.ToString()),
+                    AllInfo = allTask.Result.ToString().ToInfo()
                 };
 
                 layoutModel.Section = Statistics.Build(model);
-
                 await context.Response.WriteAsync(Layout.Build(layoutModel, _settings));
                 return;
             }
             #endregion
+
 
             #region Parámetros de consulta
             var page = context.Request.Query["page"].ToString();
