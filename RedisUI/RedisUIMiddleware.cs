@@ -8,6 +8,7 @@ using RedisUI.Helpers;
 using System;
 using System.IO;
 using System.Text.Json;
+using RedisUI.Infra;
 
 namespace RedisUI
 {
@@ -24,6 +25,7 @@ namespace RedisUI
 
         public async Task InvokeAsync(HttpContext context)
         {
+            #region Ruta no coincide o no autorizado
             if (!context.Request.Path.ToString().StartsWith(_settings.Path))
             {
                 await _next(context);
@@ -35,24 +37,25 @@ namespace RedisUI
                 context.Response.StatusCode = 403;
                 return;
             }
+            #endregion
 
-            var db = context.Request.Query["db"].ToString();
-            int currentDb = string.IsNullOrEmpty(db) ? 0 : int.Parse(db);
-
-            IDatabase redisDb;
-            
-            if (_settings.ConfigurationOptions != null)
+            #region Conexión a Redis
+            int currentDb = 0;
+            if (context.Request.Query.TryGetValue("db", out var dbValue) && int.TryParse(dbValue, out var parsedDb))
             {
-                redisDb = ConnectionMultiplexer.Connect(_settings.ConfigurationOptions).GetDatabase(currentDb);
+                currentDb = parsedDb;
             }
-            else
-            {
-                redisDb = ConnectionMultiplexer.Connect(_settings.ConnectionString).GetDatabase(currentDb);
-            }    
 
-            var dbSize = await redisDb.ExecuteAsync("DBSIZE");
+            var redisDb = RedisConnectionFactory.Connection.GetDatabase(currentDb);
 
-            var keyspace = await redisDb.ExecuteAsync("INFO", "KEYSPACE");
+            var dbSizeTask = redisDb.ExecuteAsync("DBSIZE");
+            var keyspaceTask = redisDb.ExecuteAsync("INFO", "KEYSPACE");
+
+            await Task.WhenAll(dbSizeTask, keyspaceTask);
+
+            var dbSize = dbSizeTask.Result;
+            var keyspace = keyspaceTask.Result;
+
             var keyspaces = keyspace
                 .ToString()
                 .Replace("# Keyspace", "")
@@ -68,6 +71,9 @@ namespace RedisUI
                 DbSize = dbSize.ToString()
             };
 
+            #endregion
+
+            #region statistics
             if (context.Request.Path.ToString() == $"{_settings.Path}/statistics")
             {
                 var serverInfo = await redisDb.ExecuteAsync("INFO", "SERVER");
@@ -89,14 +95,17 @@ namespace RedisUI
                 await context.Response.WriteAsync(Layout.Build(layoutModel, _settings));
                 return;
             }
+            #endregion
 
+            #region Parámetros de consulta
             var page = context.Request.Query["page"].ToString();
             long cursor = string.IsNullOrEmpty(page) ? 0 : long.Parse(page);
 
             var pageSize = context.Request.Query.TryGetValue("size", out var size) ? size.ToString() : "10";
-
             var searchKey = context.Request.Query["key"].ToString();
+            #endregion
 
+            #region Procesamiento de cuerpo POST (inserción / eliminación)
             context.Request.EnableBuffering();
             context.Request.Body.Seek(0, SeekOrigin.Begin);
             using (var stream = new StreamReader(context.Request.Body))
@@ -114,7 +123,7 @@ namespace RedisUI
                             await redisDb.ExecuteAsync("DEL", postModel.DelKey);
                         }
 
-                        if (!string.IsNullOrEmpty(postModel.InsertKey) 
+                        if (!string.IsNullOrEmpty(postModel.InsertKey)
                             && !string.IsNullOrEmpty(postModel.InsertValue))
                         {
                             await redisDb.ExecuteAsync("SET", postModel.InsertKey, postModel.InsertValue);
@@ -122,7 +131,9 @@ namespace RedisUI
                     }
                 }
             }
+            #endregion
 
+            #region Escaneo de claves
             RedisResult result;
             if (string.IsNullOrEmpty(searchKey))
             {
@@ -140,7 +151,9 @@ namespace RedisUI
                     Name = x
                 })
                 .ToList();
+            #endregion
 
+            #region Resolución de tipos y valores
             foreach (var key in keys)
             {
                 key.KeyType = await redisDb.KeyTypeAsync(key.Name);
@@ -171,10 +184,12 @@ namespace RedisUI
                         break;
                 }
             }
+            #endregion
 
+            #region Renderizado de vista principal
             layoutModel.Section = Main.Build(keys, keys.Count > 0 ? long.Parse((string)innerResult[0]) : 0);
-
             await context.Response.WriteAsync(Layout.Build(layoutModel, _settings));
+            #endregion
         }
     }
 }
