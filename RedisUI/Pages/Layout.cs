@@ -1,8 +1,8 @@
 ﻿using RedisUI.Contents;
 using RedisUI.Models;
 using System;
-using System.Drawing;
 using System.Text;
+using System.Collections.Generic;
 
 namespace RedisUI.Pages
 {
@@ -11,7 +11,7 @@ namespace RedisUI.Pages
         public static string Build(LayoutModel model, RedisUISettings settings)
         {
             var dbList = new StringBuilder();
-            foreach (var item in model.DbList)
+            foreach (var item in model?.DbList ?? new List<string>())
             {
                 dbList.Append($"<li><a class=\"dropdown-item\" id=\"nav{item}\" href=\"javascript:setdb({item});\">{item}</a></li>");
             }
@@ -22,12 +22,12 @@ namespace RedisUI.Pages
     <meta charset=""UTF-8"">
     <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
     <title>Redis Integrated UI</title>
-    <link href=""{settings.CssLink}"" rel=""stylesheet"" crossorigin=""anonymous"">
-    <script src=""{settings.JsLink}"" crossorigin=""anonymous""></script>
+    <link href=""{settings?.CssLink ?? ""}"" rel=""stylesheet"" crossorigin=""anonymous"">
+    <script src=""{settings?.JsLink ?? ""}"" crossorigin=""anonymous""></script>
 
-    <link href=""{settings.HighlightTheme}"" rel=""stylesheet"">
-    <script src=""{settings.HighlightJs}""></script>
-    <script src=""{settings.HighlightJson}""></script>
+    <link href=""{settings?.HighlightTheme ?? ""}"" rel=""stylesheet"">
+    <script src=""{settings?.HighlightJs ?? ""}""></script>
+    <script src=""{settings?.HighlightJson ?? ""}""></script>
 
     <style>
         .dropdown-menu {{ z-index: 1021; }}
@@ -72,12 +72,12 @@ namespace RedisUI.Pages
     
     <nav class=""navbar navbar-expand-lg bg-dark navbar-dark"">
         <div class=""container-fluid"">
-            <a class=""navbar-brand"" href=""..{settings.Path}"">RedisUI</a>
+            <a class=""navbar-brand"" href=""..{settings?.Path ?? ""}"">RedisUI</a>
             <div class=""collapse navbar-collapse"" id=""navbarSupportedContent"">
               <ul class=""navbar-nav me-auto mb-2 mb-lg-0"">
                 <a class=""navbar-brand"" title=""Keys"">
                     {Icons.KeyLg}      
-                    {model.DbSize}
+                    {model?.DbSize ?? ""}
                 </a>
                 <li class=""nav-item dropdown"">
                   <a id=""dblink"" class=""nav-link dropdown-toggle"" href=""#"" role=""button"" data-bs-toggle=""dropdown"" aria-expanded=""false"">
@@ -89,7 +89,7 @@ namespace RedisUI.Pages
                 </li>
               </ul>
             </div>            
-            <a class=""navbar-brand"" title=""Statistics"" href=""..{settings.Path}/statistics"">
+            <a class=""navbar-brand"" title=""Statistics"" href=""..{settings?.Path ?? ""}/statistics"">
                 {Icons.Statistic}
             </a>
         </div>
@@ -97,7 +97,7 @@ namespace RedisUI.Pages
 
     <div class=""container"">
         <br/>
-            {model.Section}
+            {model?.Section ?? ""}
     </div>
 
     <div class=""container"">

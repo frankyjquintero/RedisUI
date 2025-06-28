@@ -46,7 +46,7 @@ namespace RedisUI.Helpers
                         break;
 
                     case RedisType.Hash:
-                        var hash = (await db.HashGetAllAsync(key)).Take(limit).ToArray();
+                        var hash = (await db.HashGetAllAsync(key) ?? Array.Empty<HashEntry>()).Take(limit).ToArray();
                         result.Value = hash.ToDictionary(x => x.Name.ToString(), x => (object)x.Value.ToString());
                         break;
 
