@@ -2,129 +2,48 @@
 using System.Text;
 using RedisUI.Helpers;
 using RedisUI.Contents;
+using System.Linq;
+using System.Collections.Generic;
 
 namespace RedisUI.Pages
 {
-    public static class Statistics
-    {
-        public static string Build(StatisticsVm model)
+        public static class Statistics
         {
-            var tbody = new StringBuilder();
-            foreach (var keyspace in model.Keyspaces)
+            public static string Build(StatisticsVm model)
             {
-                tbody.Append($"<tr><td>{keyspace.Db}</td><td>{keyspace.Keys}</td><td>{keyspace.Expires}</td><td>{keyspace.Avg_Ttl}</td></tr>");
+                string Table(string icon, string title, string[] headers, IEnumerable<string[]> rows) =>
+                    $@"<div class=""col""><table class=""table table-hover""><thead><tr class=""table-active""><th colspan=""{headers.Length}""><span>{icon}</span>{title}</th></tr><tr>{string.Join("", headers.Select(h => $@"<th scope=""col"">{h}</th>"))}</tr></thead><tbody>{string.Join("", rows.Select(r => $"<tr>{string.Join("", r.Select(c => $"<td>{c}</td>"))}</tr>"))}</tbody></table></div>";
+
+                var keyspaceRows = model.Keyspaces.Select(k => new[] { k.Db, k.Keys, k.Expires, k.Avg_Ttl });
+                var infoRows = model.AllInfo.Select(i => new[] { i.Key, i.Value });
+
+                return $@"
+                <div class=""row"">
+                    {Card(Icons.Server, "Server", new[] {
+                        $"Redis Version: <strong>{model.Server.RedisVersion}</strong>",
+                        $"Redis Mode: <strong>{model.Server.RedisMode}</strong>",
+                        $"TCP Port: <strong>{model.Server.TcpPort}</strong>"
+                    })}
+                    {Card(Icons.Memory, "Memory", new[] {
+                        $"Used Memory: <strong>{model.Memory.UsedMemory.ToMegabytes()}</strong>M",
+                        $"Used Memory Peak: <strong>{model.Memory.UsedMemoryPeak.ToMegabytes()}</strong>M",
+                        $"Used Memory Lua: <strong>{model.Memory.UsedMemoryLua.ToMegabytes()}</strong>M"
+                    })}
+                    {Card(Icons.Stats, "Stats", new[] {
+                        $"Total Connections Received: <strong>{model.Stats.TotalConnectionsReceived}</strong>",
+                        $"Total Commands Processed: <strong>{model.Stats.TotalCommandsProcessed}</strong>",
+                        $"Expired Keys: <strong>{model.Stats.ExpiredKeys}</strong>"
+                    })}
+                </div>
+                <div class=""row"">
+                    {Table(Icons.KeySm, "Key Statistics", new[] { "DB", "Keys", "Expires", "Avg Ttl" }, keyspaceRows)}
+                </div>
+                <div class=""row"">
+                    {Table(Icons.Info, "All Information", new[] { "Key", "Value" }, infoRows)}
+                </div>";
             }
 
-            var tbodyInfo = new StringBuilder();
-            foreach (var info in model.AllInfo)
-            {
-                tbodyInfo.Append($"<tr><td>{info.Key}</td><td>{info.Value}</td></tr>");
-            }
-
-            return $@"
-<div class=""row"">
-    <div class=""col-4"">
-        <div class=""card border-info mb-3 sticky-top"">
-            <div class=""card-header"">
-                <strong>
-                    <span>
-                        {Icons.Server}
-                    </span>Server
-                </strong>
-            </div>            
-            <div class=""card-body"">
-                <ul class=""list-group list-group-flush"">
-                    <li class=""list-group-item"">Redis Version: <strong>{model.Server.RedisVersion}</strong></li>
-                    <li class=""list-group-item"">Redis Mode: <strong>{model.Server.RedisMode}</strong></li>
-                    <li class=""list-group-item"">TCP Port: <strong>{model.Server.TcpPort}</strong></li>
-                </ul>
-            </div>
-        </div>
-    </div>
-    <div class=""col-4"">
-        <div class=""card border-info mb-3 sticky-top"">
-            <div class=""card-header"">
-                <strong>
-                    <span>
-                        {Icons.Memory}
-                    </span>Memory
-                </strong>
-            </div>            
-            <div class=""card-body"">
-                <ul class=""list-group list-group-flush"">
-                    <li class=""list-group-item"">Used Memory: <strong>{model.Memory.UsedMemory.ToMegabytes()}</strong>M</li>
-                    <li class=""list-group-item"">Used Memory Peak: <strong>{model.Memory.UsedMemoryPeak.ToMegabytes()}</strong>M</li>
-                    <li class=""list-group-item"">Used Memory Lua: <strong>{model.Memory.UsedMemoryLua.ToMegabytes()}</strong>M</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-    <div class=""col-4"">
-        <div class=""card border-info mb-3 sticky-top"">
-            <div class=""card-header"">
-                <strong>    
-                    <span>
-                        {Icons.Stats}
-                    </span>Stats
-                </strong>
-            </div>
-            <div class=""card-body"">
-                <ul class=""list-group list-group-flush"">
-                    <li class=""list-group-item"">Total Connections Received: <strong>{model.Stats.TotalConnectionsReceived}</strong></li>
-                    <li class=""list-group-item"">Total Commands Processed: <strong>{model.Stats.TotalCommandsProcessed}</strong></li>
-                    <li class=""list-group-item"">Expired Keys: <strong>{model.Stats.ExpiredKeys}</strong></li>
-                </ul>
-            </div>
-        </div>
-    </div>
-</div>
-<div class=""row"">
-    <div class=""col"">
-        <table class=""table table-hover"">
-          <thead>
-            <tr class=""table-active"">
-              <th colspan=""4"">
-                <span>
-                    {Icons.KeySm}
-                </span>Key Statistics
-            </th>
-            </tr>
-            <tr>
-              <th scope=""col"">DB</th>
-              <th scope=""col"">Keys</th>
-              <th scope=""col"">Expires</th>
-              <th scope=""col"">Avg Ttl</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tbody}       
-          </tbody>
-        </table>
-    </div>
-</div>
-<div class=""row"">
-    <div class=""col"">
-        <table class=""table table-hover"">
-          <thead>
-            <tr class=""table-active"">
-              <th colspan=""4"">
-                <span>
-                    {Icons.Info}
-                </span>All Information
-            </th>
-            </tr>
-            <tr>
-              <th scope=""col"">Key</th>
-              <th scope=""col"">Value</th>
-            </tr>
-          </thead>
-          <tbody>
-             {tbodyInfo}     
-          </tbody>
-        </table>
-    </div>
-</div>
-";
+            private static string Card(string icon, string title, string[] items) =>
+                $@"<div class=""col-4""><div class=""card border-info mb-3 sticky-top""><div class=""card-header""><strong><span>{icon}</span>{title}</strong></div><div class=""card-body""><ul class=""list-group list-group-flush"">{string.Join("", items.Select(i => $@"<li class=""list-group-item"">{i}</li>"))}</ul></div></div></div>";
         }
-    }
 }

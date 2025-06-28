@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace RedisUI.Helpers
 {
@@ -7,22 +8,13 @@ namespace RedisUI.Helpers
     {
         public static Dictionary<string, string> ToInfo(this string input)
         {
-            string[] rows = input.Split(new string[] { "\r\n" }, StringSplitOptions.None);
-            var attributeMap = new Dictionary<string, string>();
+            string[] rows = input.Split(new[] { "\r\n" }, StringSplitOptions.None);
 
-            foreach (string row in rows)
-            {
-                if (!string.IsNullOrEmpty(row))
-                {
-                    string[] keyValue = row.Split(':');
-                    if (keyValue.Length == 2)
-                    {
-                        string key = keyValue[0];
-                        string value = keyValue[1];
-                        attributeMap[key] = value;
-                    }
-                }
-            }
+            var attributeMap = rows
+                .Where(row => !string.IsNullOrEmpty(row) && row.Contains(':'))
+                .Select(row => row.Split(':'))
+                .Where(keyValue => keyValue.Length == 2)
+                .ToDictionary(keyValue => keyValue[0], keyValue => keyValue[1]);
 
             return attributeMap;
         }
