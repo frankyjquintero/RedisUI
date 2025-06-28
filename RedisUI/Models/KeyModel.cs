@@ -1,4 +1,5 @@
-﻿using StackExchange.Redis;
+﻿using RedisUI.Helpers;
+using StackExchange.Redis;
 
 namespace RedisUI.Models
 {
@@ -8,8 +9,7 @@ namespace RedisUI.Models
 
         public RedisType KeyType { get; set; }
 
-        public RedisValue Value { get; set; }
+        public RedisKeyDetails Detail { get; set; }
 
-        public string Badge { get; set; }
     }
 }

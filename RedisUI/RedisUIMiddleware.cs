@@ -196,7 +196,7 @@ namespace RedisUI
                 try
                 {
                     key.KeyType = await redisDb.KeyTypeAsync(key.Name);
-                    (key.Value, key.Badge) = await RedisKeyValueResolver.ResolveAsync(redisDb, key.Name);
+                    key.Detail = await RedisKeyValueResolver.ResolveDetailedAsync(redisDb, key.Name);
                 }
                 finally
                 {

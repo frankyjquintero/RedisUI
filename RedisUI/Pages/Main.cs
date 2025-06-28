@@ -1,8 +1,8 @@
 ﻿using RedisUI.Contents;
-using RedisUI.Helpers;
 using RedisUI.Models;
 using System.Collections.Generic;
 using System.Text;
+using System.Text.Json;
 
 namespace RedisUI.Pages
 {
@@ -13,9 +13,9 @@ namespace RedisUI.Pages
             var tbody = new StringBuilder();
             foreach (var key in keys)
             {
-                var columns = $"<td><span class=\"badge text-bg-{key.Badge}\">{key.KeyType}</span></td><td>{key.Name}</td><td>{key.Value.Length().ToKilobytes()}</td>";
-
-                tbody.Append($"<tr style=\"cursor: pointer;\" data-value='{key.Value}'>{columns}<td><a onclick=\"confirmDelete('{key.Name}')\" class=\"btn btn-sm btn-outline-danger\"><span>{Icons.Delete}</span></a></td></tr>");
+                var json = JsonSerializer.Serialize(key.Detail.Value);
+                var columns = $"<td><span class=\"badge {key.Detail.Badge}\">{key.KeyType}</span></td><td>{key.Name}</td><td>{key.Detail.Length}</td><td>{(key.Detail.TTL.HasValue ? $"{key.Detail.TTL} s" : "∞")}</td>";
+                tbody.Append($"<tr style=\"cursor: pointer;\" data-value='{json}' data-key='{key.Name}'>{columns}<td class=\"text-center\"><a onclick=\"confirmDelete('{key.Name}')\" class=\"btn btn-sm btn-outline-danger\"><span>{Icons.Delete}</span></a></td></tr>");
             }
 
             var html = $@"
@@ -55,6 +55,7 @@ namespace RedisUI.Pages
                                 <th>Type</th>
                                 <th>Key</th>
                                 <th>Size (KB)</th>
+                                <th>TTL</th>
                                 <th class=""text-center"">Action</th>
                             </tr>
                         </thead>
@@ -74,10 +75,11 @@ namespace RedisUI.Pages
                 <div class=""card shadow-sm h-100"">
                     <div class=""card-header bg-info text-white"">Value</div>
                     <div class=""card-body overflow-auto"">
-                        <pre class=""mb-0""><code id=""valueContent"">Click on a key to get value...</code></pre>
+                        <pre class=""mb-0""><code id=""valueContent"" class=""language-json"">Click on a key to get value...</code></pre>
                     </div>
                 </div>
             </div>
+
         </div>
     </div>
 
@@ -110,17 +112,36 @@ document.addEventListener('DOMContentLoaded', function () {{
     document.getElementById('size' + new URLSearchParams(window.location.search).get('size'))?.classList.add('active');
 
     // 4. Asignar click a las filas
-    document.querySelectorAll('#redisTable tbody tr').forEach(row => {{
-      row.onclick = () => {{
-        const val = row.getAttribute('data-value');
-        document.getElementById('valueContent').textContent = JSON.stringify(val, null, 4);
-      }};
+    document.querySelectorAll(""#redisTable tbody tr"").forEach(row => {{
+        row.addEventListener(""click"", function () {{
+            const detail = JSON.parse(this.dataset.value);
+            renderDetailPanel(detail);
+        }});
     }});
 
     // 5. Configurar botón Next/Back
     document.getElementById('btnNext').onclick = () => nextPage();
     document.getElementById('btnNext').hidden = ('0' === '{next}');
   }});
+
+function renderDetailPanel(detail) {{
+    const valueEl = document.getElementById(""valueContent"");
+    if (!valueEl) return;
+
+    // Resetear el resaltado previo
+    valueEl.removeAttribute(""data-highlighted"");
+    valueEl.className = ""language-json"";
+
+    // Asignar el JSON formateado
+    const formatted = JSON.stringify(detail, null, 2);
+    valueEl.textContent = formatted;
+
+    // Volver a aplicar el resaltado
+    hljs.highlightElement(valueEl);
+}}
+
+
+
 
 function showPage(cursor, db, key) {{
   const params = new URLSearchParams();

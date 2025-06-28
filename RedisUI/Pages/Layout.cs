@@ -1,6 +1,7 @@
 ﻿using RedisUI.Contents;
 using RedisUI.Models;
 using System;
+using System.Drawing;
 using System.Text;
 
 namespace RedisUI.Pages
@@ -24,11 +25,19 @@ namespace RedisUI.Pages
     <link href=""{settings.CssLink}"" rel=""stylesheet"" crossorigin=""anonymous"">
     <script src=""{settings.JsLink}"" crossorigin=""anonymous""></script>
 
-    <style>
-        .dropdown-menu {{
-            z-index: 1021;
-        }}
+    <link href=""{settings.HighlightTheme}"" rel=""stylesheet"">
+    <script src=""{settings.HighlightJs}""></script>
+    <script src=""{settings.HighlightJson}""></script>
 
+    <style>
+        .dropdown-menu {{ z-index: 1021; }}
+        .badge-purple  {{background-color: #6f42c1; color: #fff; }} /* morado */
+        .badge-blue    {{background-color: #007bff; color: #fff; }} /* azul */
+        .badge-green   {{background-color: #28a745; color: #fff; }} /* verde */
+        .badge-orange  {{background-color: #fd7e14; color: #fff; }} /* naranja */
+        .badge-magenta {{background-color: #e83e8c; color: #fff; }} /* fucsia */
+        .badge-olive   {{background-color: #6c757d; color: #fff; }} /* verde oliva (usado en stream) */
+        .badge-gray    {{background-color: #adb5bd; color: #fff; }} /* gris */
     </style>
 
 <script>
