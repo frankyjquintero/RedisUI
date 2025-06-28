@@ -3,6 +3,45 @@
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/73a38d8d54114234b9f17a3927357af6)](https://app.codacy.com/gh/frankyjquintero/RedisUI/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 Redis Integrated UI is a .NET project designed to simplify the integration of a Redis User Interface (UI) page into your web applications. With this project, users can easily incorporate a Redis UI page, enabling them to interact with Redis keys and view Redis server statistics seamlessly.
 
+## 🔧 Recent Enhancements by @frankyjquintero
+
+This project has undergone several significant improvements to enhance functionality, robustness, and forward compatibility. Notable changes include:
+
+- ✅ **Support for additional Redis data types**: Stream, Sorted Set, Hash, and more are now properly rendered.
+- ✅ **Error prevention enhancements**: Null checks were added to avoid potential `NullReferenceException` issues.
+- ✅ **Cleaner JSON handling**: Implemented JSON mapping and Monokai syntax highlighting for Redis key inspection.
+- ✅ **Improved UI stability**: Refactored HTML rendering, redesigned UI, and cleaned up JS, including cursor-based SCAN enhancements.
+- ✅ **Optimized performance**: Parallel async resolution for Redis statistics and key values; optimized ConnectionMultiplexer singleton.
+- ✅ **Simplified middleware API**: Refactored `RedisUIMiddleware`, `RedisKeyValueResolver`, and POST body handling; fixed overloading mechanism.
+- ✅ **Extended .NET support**: Added compatibility for .NET 9 and updated TargetFrameworks accordingly.
+
+## 🔧 Custom JS and CSS for RedisUI Viewer
+
+You can customize the appearance and behavior of the Redis UI by providing your own JavaScript and CSS files. This is useful if you want to use local versions of Bootstrap, syntax highlighters, or JSON viewers.
+
+### Example
+
+```csharp
+app.UseRedisUI(new RedisUISettings
+{
+    CssLink = "/assets/css/bootstrap.min.css",
+    JsLink = "/assets/js/bootstrap.bundle.min.js",
+    HighlightTheme = "/assets/css/highlight-dark.css",
+    HighlightJs = "/assets/js/highlight.min.js",
+    HighlightJson = "/assets/js/json-viewer.js"
+});
+```
+
+**UI**
+![image](https://github.com/user-attachments/assets/fe86c26b-8e66-4f21-b3ed-d08c5d28e03c)
+
+**Server Statistics**
+![image](https://github.com/user-attachments/assets/1a9ed6db-bbe7-41ec-92e9-701ed37bae1b)
+
+
+👉 You can review the updated source and commits at [github.com/frankyjquintero/RedisUI](https://github.com/frankyjquintero/RedisUI)
+
+
 ## Features
 
 - **Integration Ease**: Simplifies the process of integrating a Redis UI page into web applications.
