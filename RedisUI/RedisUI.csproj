@@ -34,11 +34,12 @@
 			✅ Async parallel performance for Redis stats and key resolution
 			✅ Middleware API improvements with overloads instead of optionals
 			✅ Extended support to .NET 9 in TargetFrameworks
+			✅ Dashboard Authorization Filters
 		</PackageReleaseNotes>
 
 		<IncludeSymbols>True</IncludeSymbols>
 		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
-		<Version>2.0.1</Version>
+		<Version>2.1.0</Version>
 	</PropertyGroup>
 	<ItemGroup>
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
