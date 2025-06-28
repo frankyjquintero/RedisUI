@@ -18,7 +18,12 @@ namespace RedisUI.Helpers
     {
         private const int DefaultLimit = 100;
 
-        public static async Task<RedisKeyDetails> ResolveDetailedAsync(IDatabase db, string key, int limit = DefaultLimit)
+        public static async Task<RedisKeyDetails> ResolveDetailedAsync(IDatabase db, string key)
+        {
+            return await ResolveDetailedAsync(db, key, DefaultLimit);
+        }
+
+        public static async Task<RedisKeyDetails> ResolveDetailedAsync(IDatabase db, string key, int limit)
         {
             try
             {
