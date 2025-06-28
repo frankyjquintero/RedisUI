@@ -1,7 +1,34 @@
-# Redis Integrated UI
-[![NuGet](http://img.shields.io/nuget/v/RedisUI.svg)](https://www.nuget.org/packages/RedisUI/)
+# RedisUI.Dashboard
+
+> A modern Redis UI for ASP.NET Core with enhanced features, built as a fork of [RedisUI](https://www.nuget.org/packages/RedisUI).
+
+[![NuGet](https://img.shields.io/nuget/v/RedisUI.Dashboard.svg)](https://www.nuget.org/packages/RedisUI.Dashboard/)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/73a38d8d54114234b9f17a3927357af6)](https://app.codacy.com/gh/frankyjquintero/RedisUI/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
-Redis Integrated UI is a .NET project designed to simplify the integration of a Redis User Interface (UI) page into your web applications. With this project, users can easily incorporate a Redis UI page, enabling them to interact with Redis keys and view Redis server statistics seamlessly.
+
+---
+
+## 🔥 What’s New in RedisUI.Dashboard
+
+This fork includes major improvements over the original RedisUI:
+
+- ✅ **Support for Redis data types**: Stream, Sorted Set, Hash, List, Set, String.
+- ✅ **Error prevention**: Null-safe resolution to prevent `NullReferenceException`.
+- ✅ **Monokai-highlighted JSON**: Key values rendered as readable formatted JSON.
+- ✅ **UI and performance upgrades**:
+  - Redesigned layout and styles
+  - SCAN cursor enhancements
+  - Async parallel Redis key & stat resolution
+- ✅ **Middleware refactor**: Clearer API with overloads instead of optional params.
+- ✅ **.NET 9 support**: Added to `TargetFrameworks`.
+
+---
+
+## 🚀 Installation
+
+Install via NuGet:
+
+```bash
+dotnet add package RedisUI.Dashboard
 
 ## 🔧 Recent Enhancements by @frankyjquintero
 
@@ -41,6 +68,12 @@ app.UseRedisUI(new RedisUISettings
 
 👉 You can review the updated source and commits at [github.com/frankyjquintero/RedisUI](https://github.com/frankyjquintero/RedisUI)
 
+
+# Redis Integrated UI
+[![NuGet](http://img.shields.io/nuget/v/RedisUI.svg)](https://www.nuget.org/packages/RedisUI/)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/0d07393843a7422788c7a49a7875b99e)](https://app.codacy.com/gh/ekondur/RedisUI/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
+
+Redis Integrated UI is a .NET project designed to simplify the integration of a Redis User Interface (UI) page into your web applications. With this project, users can easily incorporate a Redis UI page, enabling them to interact with Redis keys and view Redis server statistics seamlessly.
 
 ## Features
 
