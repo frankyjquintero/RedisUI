@@ -100,11 +100,7 @@ namespace RedisUI
 
 
             #region Parámetros de consulta
-            var page = context.Request.Query["page"].ToString();
-            long cursor = string.IsNullOrEmpty(page) ? 0 : long.Parse(page);
-
-            var pageSize = context.Request.Query.TryGetValue("size", out var size) ? size.ToString() : "10";
-            var searchKey = context.Request.Query["key"].ToString();
+            var queryParams = new RequestQueryParamsModel(context.Request);
             #endregion
 
             #region Procesamiento de cuerpo POST (inserción / eliminación)
@@ -137,13 +133,13 @@ namespace RedisUI
 
             #region Escaneo de claves
             RedisResult result;
-            if (string.IsNullOrEmpty(searchKey))
+            if (string.IsNullOrEmpty(queryParams.SearchKey))
             {
-                result = await redisDb.ExecuteAsync("SCAN", cursor.ToString(), "COUNT", pageSize.ToString());
+                result = await redisDb.ExecuteAsync("SCAN", queryParams.Page.ToString(), "COUNT", queryParams.PageSize.ToString());
             }
             else
             {
-                result = await redisDb.ExecuteAsync("SCAN", cursor.ToString(), "MATCH", searchKey, "COUNT", pageSize.ToString());
+                result = await redisDb.ExecuteAsync("SCAN", queryParams.Page.ToString(), "MATCH", queryParams.SearchKey, "COUNT", queryParams.PageSize.ToString());
             }
 
             var innerResult = (RedisResult[])result;
