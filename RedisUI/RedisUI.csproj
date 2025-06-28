@@ -1,28 +1,45 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-	<TargetFrameworks>net6.0;net7.0;net8.0;net9.0</TargetFrameworks>
-	<GenerateDocumentationFile>false</GenerateDocumentationFile>
-	  <RootNamespace>RedisUI</RootNamespace>
-	  <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	  <Title>Redis Integrated UI</Title>
-	  <Authors>Emrah KONDUR</Authors>
-	  <Company>Emrah KONDUR</Company>
-	  <Description>Redis Integrated UI</Description>
-	  <Copyright>https://github.com/ekondur/RedisUI</Copyright>
-	  <PackageProjectUrl>https://github.com/ekondur/RedisUI</PackageProjectUrl>
-	  <PackageIcon>redisui.png</PackageIcon>
-	  <PackageReadmeFile>README.md</PackageReadmeFile>
-	  <RepositoryUrl>https://github.com/ekondur/RedisUI</RepositoryUrl>
-	  <RepositoryType>git</RepositoryType>
-	  <PackageTags>Redis,Web,UI,Client,Keys,Statistics</PackageTags>
-	  <PackageReleaseNotes>Add or Edit Key Feature</PackageReleaseNotes>
-	  <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
-	  <IncludeSymbols>True</IncludeSymbols>
-	  <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-	  <Version>1.4.0</Version>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFrameworks>net6.0;net7.0;net8.0;net9.0</TargetFrameworks>
+		<GenerateDocumentationFile>false</GenerateDocumentationFile>
+		<RootNamespace>RedisUI</RootNamespace>
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
 
+		<PackageId>RedisUI.Dashboard</PackageId>
+		<Title>Redis Integrated UI Dashboard</Title>
+		<Authors>Emrah KONDUR, Franky J. Quintero</Authors>
+		<Company>Open Source</Company>
+		<Description>
+			Fork of RedisUI with extended .NET 9 support, improved key rendering, JSON formatting, and UI refactoring.
+			A web-based Redis management UI for ASP.NET Core apps. View, edit, and analyze keys and stats with ease.
+		</Description>
+		<Copyright>© 2025 Franky J. Quintero - Emrah Kondur</Copyright>
+
+		<PackageProjectUrl>https://github.com/frankyjquintero/RedisUI</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/frankyjquintero/RedisUI</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+
+		<PackageIcon>redisui.png</PackageIcon>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+
+		<PackageTags>Redis, Web, UI, Client, Keys, Statistics, ASP.NET Core, Redis Viewer, Admin UI, Dashboard, Fork</PackageTags>
+
+		<PackageReleaseNotes>
+			✅ Added support for Redis data types (Stream, Sorted Set, Hash)
+			✅ Improved null-safety to prevent NullReferenceException
+			✅ Enhanced JSON key inspection with Monokai highlighting
+			✅ Refactored UI rendering and JS cleanup (SCAN optimized)
+			✅ Async parallel performance for Redis stats and key resolution
+			✅ Middleware API improvements with overloads instead of optionals
+			✅ Extended support to .NET 9 in TargetFrameworks
+		</PackageReleaseNotes>
+
+		<IncludeSymbols>True</IncludeSymbols>
+		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
+		<Version>2.0.0</Version>
+	</PropertyGroup>
 	<ItemGroup>
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
 	</ItemGroup>
