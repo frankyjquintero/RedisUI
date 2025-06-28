@@ -29,7 +29,7 @@ Install via NuGet:
 
 ```bash
 dotnet add package RedisUI.Dashboard
-
+```
 ## 🔧 Recent Enhancements by @frankyjquintero
 
 This project has undergone several significant improvements to enhance functionality, robustness, and forward compatibility. Notable changes include:
