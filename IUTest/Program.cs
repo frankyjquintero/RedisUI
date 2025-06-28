@@ -1,5 +1,5 @@
-using IUTest;
 using RedisUI;
+using RedisUI.Filters;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -27,9 +27,11 @@ ConfigurationOptions options = new ConfigurationOptions
     EndPoints = { { "localhost", 6379 } },
 };
 
+
+
 app.UseRedisUI(new RedisUISettings
 {
-    AuthorizationFilter = new FooAuthorizationFilter(app.Environment.IsDevelopment())
+    AuthorizationFilter = new DashboardBasicAuthorizationFilter("usuario", "clave")
 });
 
 app.UseAuthorization();

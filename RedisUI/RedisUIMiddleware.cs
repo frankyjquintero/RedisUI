@@ -35,8 +35,6 @@ namespace RedisUI
 
             if (!IsAuthorized(context))
             {
-                context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                await context.Response.WriteAsync("Forbidden");
                 return;
             }
 

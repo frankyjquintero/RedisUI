@@ -59,6 +59,202 @@ app.UseRedisUI(new RedisUISettings
 });
 ```
 
+## 🔐 Dashboard Authorization Filters
+
+You can protect the Redis dashboard endpoint using different types of authorization filters by configuring the `CacheOptions:Dashboard` section in your `appsettings.json`.
+
+### 📆 Supported Authentication Modes
+
+| Mode    | Description                                                               |
+| ------- | ------------------------------------------------------------------------- |
+| `basic` | Uses HTTP Basic Auth with username/password.                              |
+| `jwt`   | Requires the user to have a specific role from a JWT token.               |
+| `claim` | Requires a specific claim (type + value) to be present in the user token. |
+| `ip`    | Restricts access to specific IP addresses.                                |
+| `env`   | Allows access only in Development or Staging environments.                |
+
+### ⚙️ Example Configuration (`appsettings.json`)
+
+#### ✅ Basic Auth
+
+```json
+"CacheOptions": {
+  "Provider": "Redis",
+  "RedisConnection": "localhost:6379",
+  "Dashboard": {
+    "Enabled": true,
+    "Path": "/redis-admin",
+    "AuthenticationMode": "basic",
+    "Username": "admin",
+    "Password": "secret"
+  }
+}
+```
+
+#### ✅ Claim-based Authorization
+
+```json
+"Dashboard": {
+  "Enabled": true,
+  "AuthenticationMode": "claim",
+  "ClaimType": "role",
+  "ClaimValue": "Admin"
+}
+```
+
+#### ✅ IP Whitelist
+
+```json
+"Dashboard": {
+  "Enabled": true,
+  "AuthenticationMode": "ip",
+  "AllowedIps": [ "127.0.0.1", "::1", "192.168.0.100" ]
+}
+```
+
+#### ✅ JWT Role Check
+
+```json
+"Dashboard": {
+  "Enabled": true,
+  "AuthenticationMode": "jwt",
+  "Role": "Administrator"
+}
+```
+
+#### ✅ Environment-based (Dev/Staging only)
+
+```json
+"Dashboard": {
+  "Enabled": true,
+  "AuthenticationMode": "env"
+}
+```
+
+### 🧩 Custom Filter Injection
+
+If you want to plug in a fully custom implementation, you can manually assign your own `IRedisAuthorizationFilter` in `Program.cs`:
+
+```csharp
+app.UseRedisUI(new RedisUISettings
+{
+    Path = "/redis-admin",
+    AuthorizationFilter = new MyCustomRedisAuthFilter()
+});
+```
+
+### 🌐 Authorization Filter Factory (Automatic Selection)
+
+To make filter setup easier and based on configuration, you can use the built-in factory to instantiate the correct filter automatically:
+
+```csharp
+public static class DashboardAuthorizationFactory
+{
+    public static IRedisAuthorizationFilter Create(CacheDashboardOptions options, IWebHostEnvironment env)
+    {
+        return options.AuthenticationMode?.ToLower() switch
+        {
+            "basic" => new DashboardBasicAuthorizationFilter(options.Username, options.Password),
+            "jwt"   => new DashboardJwtAuthorizationFilter(options.Role),
+            "claim" => new DashboardClaimAuthorizationFilter(options.ClaimType, options.ClaimValue),
+            "ip"    => new DashboardIpWhitelistAuthorizationFilter(options.AllowedIps),
+            "env"   => new DashboardEnvironmentAuthorizationFilter(env),
+            _       => new DashboardBasicAuthorizationFilter(options.Username, options.Password)
+        };
+    }
+}
+```
+
+Usage inside `UseCacheDashboard` extension:
+
+```csharp
+public static IApplicationBuilder UseCacheDashboard(this IApplicationBuilder app, IConfiguration configuration)
+{
+    var options = configuration.GetSection("CacheOptions").Get<CacheOptions>();
+
+    if (options is { Provider: "Redis", Dashboard.Enabled: true })
+    {
+        var env = app.ApplicationServices.GetRequiredService<IWebHostEnvironment>();
+
+        app.UseRedisUI(new RedisUISettings
+        {
+            Path = options.Dashboard.Path,
+            ConnectionString = options.RedisConnection,
+            AuthorizationFilter = DashboardAuthorizationFactory.Create(options.Dashboard, env)
+        });
+    }
+
+    return app;
+}
+```
+
+Extra: Example mapping CacheOptions
+```csharp
+using System.Globalization;
+
+public class CacheOptions : IAppOptions
+{
+    public string Provider { get; set; } = "Redis";
+    public string RedisConnection { get; set; } = string.Empty;
+    public string SqlConnection { get; set; } = string.Empty;
+    public string Prefix { get; set; } = string.Empty;
+    public Dictionary<string, string> ExpirationTimes { get; set; } = new();
+    public CacheDashboardOptions Dashboard { get; set; } = new();
+
+    public TimeSpan GetExpiration(string key)
+    {
+        key = key.Replace(":", "__");
+        return ExpirationTimes.TryGetValue(key, out var value) && 
+               TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out var timeSpan)
+            ? timeSpan
+            : TimeSpan.FromMinutes(30);
+    }
+}
+
+public class CacheDashboardOptions
+{
+    public bool Enabled { get; set; } = false;
+    public string Path { get; set; } = "/redis-admin";
+    public string Role { get; set; } = "Admin";
+    public string Username { get; set; } = "admin";
+    public string Password { get; set; } = "secret";
+    public string AuthenticationMode { get; set; } = "basic"; // basic, jwt, claim, ip, env
+    public string ClaimType { get; set; } = string.Empty;
+    public string ClaimValue { get; set; } = string.Empty;
+    public List<string> AllowedIps { get; set; } = new();
+}
+
+```
+
+Extra: Example auto register Options:
+```csharp
+
+public static IServiceCollection AddAllConfigurations(this IServiceCollection services, IConfiguration configuration)
+{
+    var assembly = typeof(IAppOptions).Assembly;
+
+    var optionsTypes = assembly.GetTypes()
+        .Where(t => typeof(IAppOptions).IsAssignableFrom(t) && t.IsClass && !t.IsAbstract);
+
+    foreach (var type in optionsTypes)
+    {
+        var method = typeof(OptionsConfigurationServiceCollectionExtensions)
+            .GetMethods(BindingFlags.Static | BindingFlags.Public)
+            .First(m => m.Name == "Configure" && m.GetParameters().Length == 2)
+            .MakeGenericMethod(type);
+
+        method.Invoke(null, new object[] { services, configuration.GetSection(type.Name) });
+    }
+
+    return services;
+}
+```
+
+---
+
+These filters give you flexibility to secure your Redis UI in the way that best matches your application's security model.
+
+
 **UI**
 ![image](https://raw.githubusercontent.com/frankyjquintero/RedisUI/refs/heads/main/Images/460253727-fe86c26b-8e66-4f21-b3ed-d08c5d28e03c.png)
 
