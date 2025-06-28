@@ -1,14 +1,15 @@
 ﻿using Microsoft.AspNetCore.Http;
-using System.Threading.Tasks;
-using StackExchange.Redis;
-using RedisUI.Pages;
-using System.Linq;
-using RedisUI.Models;
 using RedisUI.Helpers;
+using RedisUI.Infra;
+using RedisUI.Models;
+using RedisUI.Pages;
+using StackExchange.Redis;
 using System;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
-using RedisUI.Infra;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace RedisUI
 {
@@ -152,37 +153,23 @@ namespace RedisUI
                 .ToList();
             #endregion
 
-            #region Resolución de tipos y valores
-            foreach (var key in keys)
+            #region Resolución de tipos y valores (Concurrente)
+
+            var semaphore = new SemaphoreSlim(8);
+            await Parallel.ForEachAsync(keys, async (key, ct) =>
             {
-                key.KeyType = await redisDb.KeyTypeAsync(key.Name);
-                switch (key.KeyType)
+                await semaphore.WaitAsync(ct);
+                try
                 {
-                    case RedisType.String:
-                        key.Value = await redisDb.StringGetAsync(key.Name);
-                        key.Badge = "light";
-                        break;
-                    case RedisType.Hash:
-                        var hashValue = await redisDb.HashGetAllAsync(key.Name);
-                        key.Value = string.Join(", ", hashValue.Select(x => $"{x.Name}: {x.Value}"));
-                        key.Badge = "success";
-                        break;
-                    case RedisType.List:
-                        var listValue = await redisDb.ListRangeAsync(key.Name);
-                        key.Value = string.Join(", ", listValue.Select(x => x));
-                        key.Badge = "warning";
-                        break;
-                    case RedisType.Set:
-                        var setValue = await redisDb.SetMembersAsync(key.Name);
-                        key.Value = string.Join(", ", setValue.Select(x => x));
-                        key.Badge = "primary";
-                        break;
-                    case RedisType.None:
-                        key.Value = await redisDb.StringGetAsync(key.Name);
-                        key.Badge = "secondary";
-                        break;
+                    key.KeyType = await redisDb.KeyTypeAsync(key.Name);
+                    (key.Value, key.Badge) = await RedisKeyValueResolver.ResolveAsync(redisDb, key.Name);
                 }
-            }
+                finally
+                {
+                    semaphore.Release();
+                }
+            });
+
             #endregion
 
             #region Renderizado de vista principal
