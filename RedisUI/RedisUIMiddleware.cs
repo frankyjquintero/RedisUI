@@ -104,32 +104,33 @@ namespace RedisUI
             #endregion
 
             #region Procesamiento de cuerpo POST (inserción / eliminación)
-            context.Request.EnableBuffering();
-            context.Request.Body.Seek(0, SeekOrigin.Begin);
-            using (var stream = new StreamReader(context.Request.Body))
+
+            if (HttpMethods.IsPost(context.Request.Method))
             {
-                string body = await stream.ReadToEndAsync();
+                context.Request.EnableBuffering();
 
-                if (!string.IsNullOrEmpty(body))
+                using var reader = new StreamReader(context.Request.Body, leaveOpen: true);
+                var body = await reader.ReadToEndAsync();
+                context.Request.Body.Position = 0;
+
+                if (!string.IsNullOrWhiteSpace(body))
                 {
-                    var postModel = JsonSerializer.Deserialize<PostModel>(body);
-
-                    if (postModel != null)
+                    if (JsonSerializer.Deserialize<PostModel>(body) is { } postModel)
                     {
-                        if (!string.IsNullOrEmpty(postModel.DelKey))
-                        {
-                            await redisDb.ExecuteAsync("DEL", postModel.DelKey);
-                        }
+                        if (!string.IsNullOrWhiteSpace(postModel.DelKey))
+                            await redisDb.KeyDeleteAsync(postModel.DelKey);
 
-                        if (!string.IsNullOrEmpty(postModel.InsertKey)
-                            && !string.IsNullOrEmpty(postModel.InsertValue))
+                        if (!string.IsNullOrWhiteSpace(postModel.InsertKey) &&
+                            !string.IsNullOrWhiteSpace(postModel.InsertValue))
                         {
-                            await redisDb.ExecuteAsync("SET", postModel.InsertKey, postModel.InsertValue);
+                            await redisDb.StringSetAsync(postModel.InsertKey, postModel.InsertValue);
                         }
                     }
                 }
             }
+
             #endregion
+
 
             #region Escaneo de claves
             RedisResult result;
