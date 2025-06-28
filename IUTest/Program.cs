@@ -6,7 +6,6 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
-//builder.Services.AddSingleton(ConnectionMultiplexer.Connect("localhost"));
 
 var app = builder.Build();
 
@@ -30,8 +29,7 @@ ConfigurationOptions options = new ConfigurationOptions
 
 app.UseRedisUI(new RedisUISettings
 {
-    AuthorizationFilter = new FooAuthorizationFilter(app.Environment.IsDevelopment()),
-    //ConfigurationOptions = options
+    AuthorizationFilter = new FooAuthorizationFilter(app.Environment.IsDevelopment())
 });
 
 app.UseAuthorization();
@@ -40,4 +38,4 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
-app.Run();
+await app.RunAsync();
