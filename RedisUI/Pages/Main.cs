@@ -20,245 +20,153 @@ namespace RedisUI.Pages
 
             var html = $@"
     {InsertModal.Build()}
-    <div class=""row"">
-        <div class=""col-6""><div id=""search"" class=""input-group mb-3""></div></div>
-        <div class=""col-1"">
-            <button type=""button"" class=""btn btn-outline-success"" data-bs-toggle=""modal"" data-bs-target=""#insertModal"" title=""Add or Edit Key"">
-              {Icons.KeyLg}
-            </button>
-        </div>
-        <div class=""col-5"">
-            <ul class=""pagination"">
-                <li class=""page-item"" id=""size10""><a class=""page-link"" href=""javascript:setSize(10);"">10</a></li>
-                <li class=""page-item"" id=""size20""><a class=""page-link"" href=""javascript:setSize(20);"">20</a></li>
-                <li class=""page-item"" id=""size50""><a class=""page-link"" href=""javascript:setSize(50);"">50</a></li>
-                <li class=""page-item"" id=""size100""><a class=""page-link"" href=""javascript:setSize(100);"">100</a></li>
-                <li class=""page-item"" id=""size500""><a class=""page-link"" href=""javascript:setSize(500);"">500</a></li>
-                <li class=""page-item"" id=""size1000""><a class=""page-link"" href=""javascript:setSize(1000);"">1000</a></li>
-            </ul>
+  <div class=""container-fluid"">
+        <div class=""row align-items-center mb-3"">
+          <div class=""col-sm-12 col-md-6"">
+            <div id=""search"" class=""input-group"">
+              <!-- Search input injected here -->
+            </div>
+          </div>
+          <div class=""col-sm-12 col-md-6"">
+            <div class=""d-flex justify-content-end align-items-center gap-2 flex-nowrap"">
+              <button type=""button"" class=""btn btn-success"" data-bs-toggle=""modal"" data-bs-target=""#insertModal"" title=""Add or Edit Key"">
+                {Icons.KeyLg} Add/Edit
+              </button>
+              <div class=""btn-group btn-group-sm"" role=""group"" aria-label=""Page size"">
+                <button type=""button"" class=""btn btn-outline-secondary"" id=""size10"" onclick=""setSize(10)"">10</button>
+                <button type=""button"" class=""btn btn-outline-secondary"" id=""size20"" onclick=""setSize(20)"">20</button>
+                <button type=""button"" class=""btn btn-outline-secondary"" id=""size50"" onclick=""setSize(50)"">50</button>
+                <button type=""button"" class=""btn btn-outline-secondary"" id=""size100"" onclick=""setSize(100)"">100</button>
+                <button type=""button"" class=""btn btn-outline-secondary"" id=""size500"" onclick=""setSize(500)"">500</button>
+                <button type=""button"" class=""btn btn-outline-secondary"" id=""size1000"" onclick=""setSize(1000)"">1000</button>
+              </div>
+            </div>
+          </div>
         </div>
     </div>
-    <div class=""row"">
-        <div class=""col-6"">
-            <div class=""table-responsive"">
-                <table class=""table table-hover"" id=""redisTable"">
-                    <thead class=""sticky-top"">
-                        <tr class=""table-active"">
-                            <th scope=""col"">Type</th>
-                            <th scope=""col"">Key</th>
-                            <th scope=""col"">Size(KB)</th>
-                            <th scope=""col"" class=""col-md-1"">#</th> 
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {tbody}
-                    </tbody>
-                </table>
-            </div>
-            <div class=""pagination"" id=""pagination"">
-            </div>
-        </div>
 
-        <div class=""col-6"">
-            <div class=""card border-info mb-3 sticky-top"">
-                <div class=""card-header"">Value</div>
-                <div class=""card-body"">
-                    <code><p id=""valueContent"">Click on a key to get value...</p></code>
+    <div class=""container-fluid"">
+        <div class=""row g-3"">
+            <div class=""col-lg-6"">
+                <div class=""table-responsive card shadow-sm"">
+                    <table class=""table table-striped table-hover mb-0"" id=""redisTable"">
+                        <thead class=""table-primary sticky-top"">
+                            <tr>
+                                <th>Type</th>
+                                <th>Key</th>
+                                <th>Size (KB)</th>
+                                <th class=""text-center"">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {tbody}
+                        </tbody>
+                    </table>
+                </div>
+                <div class=""d-flex justify-content-center my-2"">
+                    <button id=""btnNext"" class=""btn btn-primary"" onclick=""nextPage()"">
+                        {(next == 0 ? "Back to Top" : "Next")}
+                    </button>
+                </div>
+            </div>
+
+            <div class=""col-lg-6"">
+                <div class=""card shadow-sm h-100"">
+                    <div class=""card-header bg-info text-white"">Value</div>
+                    <div class=""card-body overflow-auto"">
+                        <pre class=""mb-0""><code id=""valueContent"">Click on a key to get value...</code></pre>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
 <script>
-    
-    document.addEventListener('DOMContentLoaded', function () {{
-        let currentPage = 0;
-        let currentDb = 0;
-        let currentKey = null;
-        let currentSize = 10;
+document.addEventListener('DOMContentLoaded', function () {{
+    const params = new URLSearchParams(window.location.search);
 
-        const table = document.getElementById('redisTable');
+    // 1. Leer parámetros y decodificar el key
+    const cursor = params.get('cursor') || '0';
+    const db     = params.get('db')     || '0';
+    const key    = params.has('key')    ? decodeURIComponent(params.get('key')) : '';
+    const size   = params.get('size')   || '10';
 
-        var searchParams = new URLSearchParams(window.location.search);
-		var paramPage = searchParams.get('page');
-        var paramDb = searchParams.get('db');
-        var paramKey = searchParams.get('key');
-        var paramSize = searchParams.get('size');
+    // 2. Inyectar búsqueda con valor decodificado
+    const searchContainer = document.getElementById('search');
+    searchContainer.innerHTML = '';
+    const sInput = document.createElement('input');
+    sInput.type = 'text';
+    sInput.className = 'form-control';
+    sInput.placeholder = 'key or pattern...';
+    sInput.value = key;
+    const sBtn = document.createElement('button');
+    sBtn.innerText = 'Search';
+    sBtn.className = 'btn btn-outline-success btn-sm ms-2';
+    sBtn.onclick = () => showPage(0, db, sInput.value);
+    searchContainer.append(sInput, sBtn);
 
-        if (paramPage) {{
-            currentPage = paramPage;
-		}}
+    // 3. Marcar menú y tamaño activos
+    document.getElementById('nav' + new URLSearchParams(window.location.search).get('db'))?.classList.add('active');
+    document.getElementById('size' + new URLSearchParams(window.location.search).get('size'))?.classList.add('active');
 
-        if (paramDb) {{
-            currentDb = paramDb;
-		}}
-
-        if (paramKey) {{
-            currentKey = paramKey;
-        }}
-
-        if (paramSize) {{
-            currentSize = paramSize;
-        }}
-
-        const paginationContainer = document.getElementById('pagination');
-        paginationContainer.innerHTML = '';
-
-        const nBtn = document.createElement('button');
-        nBtn.innerText = {next} == 0 ? 'Back to top' : 'Next';
-        nBtn.className = ""btn btn-outline-success"";
-        nBtn.id = ""btnNext"";
-        nBtn.addEventListener('click', function () {{
-            showPage({next}, currentDb, currentKey);
-         }});
-        paginationContainer.appendChild(nBtn);
-
-        const searchContainer = document.getElementById('search');
-        searchContainer.innerHTML = '';
-
-        const sInput = document.createElement('input');
-        sInput.type = ""text"";
-        sInput.name = ""searchInput"";
-        sInput.className = ""form-control"";
-        sInput.placeholder = ""key or pattern..."";
-        if (currentKey) {{
-            sInput.value = currentKey;
-        }}
-
-        const sBtn = document.createElement('button');
-        sBtn.innerText = 'Search';
-        sBtn.className = 'btn btn-outline-success btn-sm';
-        sBtn.addEventListener('click', function () {{
-            var searchText = sInput.value;
-            if (searchText) {{
-                showPage(0, currentDb, searchText);
-            }} else {{
-                showPage(0, currentDb);
-            }}
-         }});
-
-        sInput.addEventListener(""keypress"", function(event) {{
-          if (event.key === ""Enter"") {{
-            event.preventDefault();
-            sBtn.click();
-          }}
-        }});
-
-        searchContainer.appendChild(sInput);
-        searchContainer.appendChild(sBtn);
-
-        function showPage(page, db, key) {{
-            var currentPath = window.location.href.replace(window.location.search, '');
-
-			var newQueryString = ""page="" + page + ""&db="" + db + ""&size="" + currentSize;
-
-            if (key) {{
-                newQueryString = newQueryString + ""&key="" + key;
-            }}
-
-			// Set the modified URL
-			var newUrl = currentPath + (currentPath.indexOf('?') !== -1 ? '&' : '?') + newQueryString;
-			
-            // Change the current page URL
-            window.location = newUrl.replace('#', '');
-        }}
-
-        const tableRows = document.querySelectorAll(""#redisTable tbody tr"");
-        tableRows.forEach(row => {{
-        row.addEventListener(""click"", function() {{
-            const value = row.getAttribute(""data-value"");
-            valueContent.textContent = JSON.stringify(value, null, 4);
-        }});
-
-      }});
-
-    var navElement = document.getElementById(""nav""+currentDb);
-    navElement.classList.add(""active"");
-
-    var sizeElement = document.getElementById(""size""+currentSize);
-    sizeElement.classList.add(""active"");
-
-    document.getElementById(""btnNext"").hidden = '{next}' == currentPage;
-
+    // 4. Asignar click a las filas
+    document.querySelectorAll('#redisTable tbody tr').forEach(row => {{
+      row.onclick = () => {{
+        const val = row.getAttribute('data-value');
+        document.getElementById('valueContent').textContent = JSON.stringify(val, null, 4);
+      }};
     }});
 
-    let currentSize = 10;
-    let currentKey = '';
-    let currentDb = 0;
-    let currentPage = 0;
+    // 5. Configurar botón Next/Back
+    document.getElementById('btnNext').onclick = () => nextPage();
+    document.getElementById('btnNext').hidden = ('0' === '{next}');
+  }});
 
-    var searchParams = new URLSearchParams(window.location.search);
-    var paramDb = searchParams.get('db');
-    var paramKey = searchParams.get('key');
-    var paramSize = searchParams.get('size');
-	var paramPage = searchParams.get('page');
+function showPage(cursor, db, key) {{
+  const params = new URLSearchParams();
+  params.set('cursor', cursor);
+  params.set('db', db);
 
-    if (paramDb) {{
-        currentDb = paramDb;
-	}}
+  const activeSizeBtn = document.querySelector('.btn-group button.active');
+  const size = activeSizeBtn ? activeSizeBtn.textContent : '10';
+  params.set('size', size);
 
-    if (paramKey) {{
-        currentKey = paramKey;
-    }}
+  if (key) params.set('key', key);
+  window.location = window.location.pathname + '?' + params.toString();
+}}
 
-    if (paramSize) {{
-        currentSize = paramSize;
-    }}
 
-    if (paramPage) {{
-        currentPage = paramPage;
-	}}
+function nextPage() {{
+    showPage({next}, 
+            new URLSearchParams(window.location.search).get('db') || '0',
+            new URLSearchParams(window.location.search).get('key') || '');
+}}
 
-    var currentPath = window.location.href.replace(window.location.search, '');
+function confirmDelete(del) {{
+    if (!confirm(`Are you sure to delete key '${{del}}'?`)) return;
+    fetch(window.location.href, {{
+        method: 'POST',
+        body: JSON.stringify({{ DelKey: del }}),
+        headers: {{ 'Content-Type': 'application/json' }}
+    }}).then(() => window.location.reload());
+}}
 
-	newQueryString = ""&db="" + currentDb + ""&size="" + currentSize + ""&key="" + currentKey + ""&page="" + currentPage;
+function saveKey() {{
+    fetch(window.location.href, {{
+        method: 'POST',
+        body: JSON.stringify({{
+            InsertKey: document.getElementById('insertKey').value,
+            InsertValue: document.getElementById('insertValue').value
+        }}),
+        headers: {{ 'Content-Type': 'application/json' }}
+    }}).then(() => window.location.reload());
+}}
 
-	newUrl = currentPath + (currentPath.indexOf('?') !== -1 ? '&' : '?') + newQueryString;
-
-    function confirmDelete(del){{
-        if (confirm(""Are you sure to delete key '"" + del + ""' ?"") == true) 
-        {{
-            fetch(newUrl, {{
-              method: 'POST',
-              body: JSON.stringify({{
-                DelKey: del,
-              }}),
-              headers: {{
-                'Content-type': 'application/json; charset=UTF-8'
-              }}
-            }}).then(function(response) {{
-                window.location = newUrl.replace('#', '');
-            }});
-        }}
-    }};
-
-    function saveKey(){{
-        fetch(newUrl, {{
-          method: 'POST',
-          body: JSON.stringify({{
-            InsertKey: document.getElementById(""insertKey"").value,
-            InsertValue: document.getElementById(""insertValue"").value
-          }}),
-          headers: {{
-            'Content-type': 'application/json; charset=UTF-8'
-          }}
-        }}).then(function(response) {{
-            window.location = newUrl.replace('#', '');
-        }});
-    }}
-
-    function checkRequired(){{
-        var insertKey = document.getElementById(""insertKey"").value;
-        var insertValue = document.getElementById(""insertValue"").value;
-
-        if (insertKey && insertValue){{
-            document.getElementById(""btnSave"").disabled = false;
-        }}
-        else{{
-            document.getElementById(""btnSave"").disabled = true;
-        }}
-    }}
-
+function checkRequired() {{
+    const k = document.getElementById('insertKey').value;
+    const v = document.getElementById('insertValue').value;
+    document.getElementById('btnSave').disabled = !(k && v);
+}}
 </script>
 ";
             return html;

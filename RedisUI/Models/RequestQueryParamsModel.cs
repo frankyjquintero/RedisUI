@@ -8,7 +8,7 @@ namespace RedisUI.Models
     public readonly struct RequestQueryParamsModel
     {
         public int Db { get; }
-        public long Page { get; }
+        public long Cursor { get; } // antes era Page
         public int PageSize { get; }
         public string SearchKey { get; }
 
@@ -16,24 +16,10 @@ namespace RedisUI.Models
         {
             var query = request.Query;
 
-            Db = ParseInt(query, "db", 0);
-            Page = ParseLong(query, "page", 0);
-            PageSize = ParseInt(query, "size", 10);
+            Db = query.TryGetValue("db", out var dbVal) && int.TryParse(dbVal, out var dbParsed) ? dbParsed : 0;
+            Cursor = query.TryGetValue("cursor", out var cursorVal) && long.TryParse(cursorVal, out var cursorParsed) ? cursorParsed : 0;
+            PageSize = query.TryGetValue("size", out var sizeVal) && int.TryParse(sizeVal, out var sizeParsed) ? sizeParsed : 10;
             SearchKey = query.TryGetValue("key", out var keyVal) ? keyVal.ToString() : string.Empty;
-        }
-
-        private static int ParseInt(IQueryCollection query, string key, int defaultValue)
-        {
-            return query.TryGetValue(key, out var value) && int.TryParse(value, out var parsed)
-                ? parsed
-                : defaultValue;
-        }
-
-        private static long ParseLong(IQueryCollection query, string key, long defaultValue)
-        {
-            return query.TryGetValue(key, out var value) && long.TryParse(value, out var parsed)
-                ? parsed
-                : defaultValue;
         }
     }
 }

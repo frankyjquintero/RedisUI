@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Builder;
+using RedisUI.Infra;
 
 namespace RedisUI
 {
@@ -22,6 +23,7 @@ namespace RedisUI
         /// <returns>The updated <c>IApplicationBuilder</c> instance.</returns>
         public static IApplicationBuilder UseRedisUI(this IApplicationBuilder builder, RedisUISettings settings)
         {
+            RedisConnectionFactory.Initialize(settings);
             return builder.UseMiddleware<RedisUIMiddleware>(settings);
         }
     }

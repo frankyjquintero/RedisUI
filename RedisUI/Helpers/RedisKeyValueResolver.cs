@@ -28,10 +28,23 @@ namespace RedisUI.Helpers
                     string.Join(", ", await db.SetMembersAsync(key)),
                     "primary"),
 
-                RedisType.None => (await db.StringGetAsync(key), "secondary"),
+                RedisType.SortedSet => (
+                    string.Join(", ", (await db.SortedSetRangeByRankWithScoresAsync(key))
+                        .Select(x => $"{x.Element}:{x.Score}")),
+                    "info"),
 
-                _ => ("Unsupported Type", "dark")
+                RedisType.Stream => (
+                    string.Join(", ", (await db.StreamReadAsync(key, "0-0"))
+                        .Select(x => $"[{x.Id}] {string.Join(", ", x.Values.Select(f => $"{f.Name}:{f.Value}"))}")),
+                    "secondary"),
+
+                // RedisType.None: Key doesn't exist, treat as empty string
+                RedisType.None => ("(Key Not Found)", "secondary"),
+
+                // For unrecognized or module-based types
+                _ => ("(Unsupported or Module Type)", "dark")
             };
+
         }
     }
 }

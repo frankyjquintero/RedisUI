@@ -9,6 +9,9 @@ namespace RedisUI.Infra
 
         public static void Initialize(RedisUISettings settings)
         {
+            if (_lazyConnection != null && _lazyConnection.IsValueCreated)
+                return;
+
             _lazyConnection = new Lazy<ConnectionMultiplexer>(() =>
             {
                 return settings.ConfigurationOptions != null

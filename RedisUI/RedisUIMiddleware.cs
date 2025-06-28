@@ -5,6 +5,7 @@ using RedisUI.Models;
 using RedisUI.Pages;
 using StackExchange.Redis;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -134,28 +135,61 @@ namespace RedisUI
 
 
             #region Escaneo de claves
-            RedisResult result;
+
+            const int MAX_SCAN_LIMIT = 1_000_000;
+            var allMatches = new List<string>();
+            long scanCursor = queryParams.Cursor;
+            long nextCursor = 0;
+
+            
             if (string.IsNullOrEmpty(queryParams.SearchKey))
             {
-                result = await redisDb.ExecuteAsync("SCAN", queryParams.Page.ToString(), "COUNT", queryParams.PageSize.ToString());
+                // Sin patrón de búsqueda
+                var result = await redisDb.ExecuteAsync("SCAN", scanCursor.ToString(), "COUNT", queryParams.PageSize.ToString());
+                var innerResult = (RedisResult[])result;
+
+                scanCursor = long.Parse((string)innerResult[0]);
+                allMatches = ((string[])innerResult[1]).ToList();
+                nextCursor = scanCursor;
             }
             else
             {
-                result = await redisDb.ExecuteAsync("SCAN", queryParams.Page.ToString(), "MATCH", queryParams.SearchKey, "COUNT", queryParams.PageSize.ToString());
+                // Con patrón: escaneo acumulativo hasta tope
+                do
+                {
+                    var result = await redisDb.ExecuteAsync("SCAN", scanCursor.ToString(), "MATCH", queryParams.SearchKey, "COUNT", 1000);
+                    var innerResult = (RedisResult[])result;
+
+                    scanCursor = long.Parse((string)innerResult[0]);
+                    var partial = (string[])innerResult[1];
+
+                    allMatches.AddRange(partial);
+
+                    if (allMatches.Count >= queryParams.PageSize || scanCursor == 0 || allMatches.Count >= MAX_SCAN_LIMIT)
+                        break;
+
+                } while (true);
+
+                nextCursor = scanCursor;
             }
 
-            var innerResult = (RedisResult[])result;
-            var keys = ((string[])innerResult[1])
-                .Select(x => new KeyModel
-                {
-                    Name = x
-                })
+            // Corta los primeros N si se acumuló más de lo necesario
+            var pagedKeys = allMatches
+                .Take(queryParams.PageSize)
                 .ToList();
+
+            var keys = pagedKeys
+                .Select(x => new KeyModel { Name = x })
+                .ToList();
+
             #endregion
+
+
+
 
             #region Resolución de tipos y valores (Concurrente)
 
-            var semaphore = new SemaphoreSlim(8);
+            var semaphore = new SemaphoreSlim(15);
             await Parallel.ForEachAsync(keys, async (key, ct) =>
             {
                 await semaphore.WaitAsync(ct);
@@ -173,9 +207,13 @@ namespace RedisUI
             #endregion
 
             #region Renderizado de vista principal
-            layoutModel.Section = Main.Build(keys, keys.Count > 0 ? long.Parse((string)innerResult[0]) : 0);
+
+            layoutModel.Section = Main.Build(keys, nextCursor);
             await context.Response.WriteAsync(Layout.Build(layoutModel, _settings));
+
             #endregion
+
+
         }
     }
 }

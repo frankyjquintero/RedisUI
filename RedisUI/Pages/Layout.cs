@@ -1,5 +1,6 @@
 ﻿using RedisUI.Contents;
 using RedisUI.Models;
+using System;
 using System.Text;
 
 namespace RedisUI.Pages
@@ -24,16 +25,6 @@ namespace RedisUI.Pages
     <script src=""{settings.JsLink}"" crossorigin=""anonymous""></script>
 
     <style>
-        .pagination {{
-            display: flex;
-            justify-content: center;
-            margin-top: 5px;
-        }}
-
-        .table {{
-            margin-top: 5px;
-        }}
-
         .dropdown-menu {{
             z-index: 1021;
         }}
@@ -44,34 +35,25 @@ namespace RedisUI.Pages
 
     function setdb(db){{
         var currentPath = window.location.href.replace(window.location.search, '');
-        window.location = currentPath.replace('#', '') + '?page=0&db=' + db;
+        window.location = currentPath.replace('#', '') + '?size=10&cursor=0&db=' + db;
     }}
 
-    function setSize(size){{
-        let currentSize = 10;
-        let currentKey = '';
-        let currentDb = 0;
+    function setSize(size) {{
+        const url = new URL(window.location);
+        const params = url.searchParams;
 
-        var searchParams = new URLSearchParams(window.location.search);
-        var paramDb = searchParams.get('db');
-        var paramKey = searchParams.get('key');
-        var paramSize = searchParams.get('size');
-
-        if (paramDb) {{
-            currentDb = paramDb;
-		}}
-
-        if (paramKey) {{
-            currentKey = paramKey;
+        // Si no había db, la establecemos a '0'
+        if (!params.has('db')) {{
+            params.set('db', '0');
         }}
 
-        var currentPath = window.location.href.replace(window.location.search, '');
+        // Siempre actualizamos size y reiniciamos cursor
+        params.set('size', size);
+        params.set('cursor', '0');
 
-		newQueryString = ""&db="" + currentDb + ""&size="" + size + ""&key="" + currentKey;
-
-		newUrl = currentPath + (currentPath.indexOf('?') !== -1 ? '&' : '?') + newQueryString;
-		
-        window.location = newUrl.replace('#', '');
+        // Reconstruimos la búsqueda y navegamos
+        url.search = params.toString();
+        window.location = url.pathname + url.search;
     }}
 
 </script>
@@ -113,7 +95,7 @@ namespace RedisUI.Pages
         <div class=""row"">
         <footer class=""d-flex flex-wrap justify-content-between align-items-center py-3 my-4 border-top"">
             <div class=""col-md-4 d-flex align-items-center"">
-              <span class=""mb-3 mb-md-0 text-body-secondary"">© 2024 Redis Integrated UI</span>
+              <span class=""mb-3 mb-md-0 text-body-secondary"">© {DateTime.Now.Year} Redis Integrated UI</span>
             </div>
         </footer>
     </div></div>
