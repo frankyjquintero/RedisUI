@@ -27,44 +27,23 @@ namespace RedisUI
 
         public async Task InvokeAsync(HttpContext context)
         {
-            #region Ruta no coincide o no autorizado
-            if (!context.Request.Path.ToString().StartsWith(_settings.Path))
+            if (!IsPathMatch(context))
             {
                 await _next(context);
                 return;
             }
 
-            if (_settings.AuthorizationFilter != null && !_settings.AuthorizationFilter.Authorize(context))
+            if (!IsAuthorized(context))
             {
-                context.Response.StatusCode = 403;
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                await context.Response.WriteAsync("Forbidden");
                 return;
             }
-            #endregion
 
-            #region Conexión a Redis
-            int currentDb = 0;
-            if (context.Request.Query.TryGetValue("db", out var dbValue) && int.TryParse(dbValue, out var parsedDb))
-            {
-                currentDb = parsedDb;
-            }
-
+            int currentDb = RedisUIMiddleware.GetCurrentDb(context);
             var redisDb = RedisConnectionFactory.Connection.GetDatabase(currentDb);
 
-            var dbSizeTask = redisDb.ExecuteAsync("DBSIZE");
-            var keyspaceTask = redisDb.ExecuteAsync("INFO", "KEYSPACE");
-
-            await Task.WhenAll(dbSizeTask, keyspaceTask);
-
-            var dbSize = dbSizeTask.Result;
-            var keyspace = keyspaceTask.Result;
-
-            var keyspaces = keyspace
-                .ToString()
-                .Replace("# Keyspace", "")
-                .Split(new string[] { "\r\n" }, StringSplitOptions.None)
-                .Where(item => !string.IsNullOrEmpty(item))
-                .Select(KeyspaceModel.Instance)
-                .ToList();
+            var (dbSize, keyspaces) = await RedisUIMiddleware.GetDbInfo(redisDb);
 
             var layoutModel = new LayoutModel
             {
@@ -73,123 +52,142 @@ namespace RedisUI
                 DbSize = dbSize.ToString()
             };
 
-            #endregion
-
-            #region statistics
-            if (context.Request.Path.ToString() == $"{_settings.Path}/statistics")
+            if (IsStatisticsRequest(context))
             {
-                var serverTask = redisDb.ExecuteAsync("INFO", "SERVER");
-                var memoryTask = redisDb.ExecuteAsync("INFO", "MEMORY");
-                var statsTask = redisDb.ExecuteAsync("INFO", "STATS");
-                var allTask = redisDb.ExecuteAsync("INFO");
-
-                await Task.WhenAll(serverTask, memoryTask, statsTask, allTask);
-
-                var model = new StatisticsVm
-                {
-                    Keyspaces = keyspaces,
-                    Server = ServerModel.Instance(serverTask.Result.ToString()),
-                    Memory = MemoryModel.Instance(memoryTask.Result.ToString()),
-                    Stats = StatsModel.Instance(statsTask.Result.ToString()),
-                    AllInfo = allTask.Result.ToString().ToInfo()
-                };
-
-                layoutModel.Section = Statistics.Build(model);
-                await context.Response.WriteAsync(Layout.Build(layoutModel, _settings));
+                await RenderStatistics(context, redisDb, keyspaces, layoutModel);
                 return;
             }
-            #endregion
 
-
-            #region Parámetros de consulta
             var queryParams = new RequestQueryParamsModel(context.Request);
-            #endregion
-
-            #region Procesamiento de cuerpo POST (inserción / eliminación)
 
             if (HttpMethods.IsPost(context.Request.Method))
+                await RedisUIMiddleware.ProcessPostBody(context, redisDb);
+
+            var (keys, nextCursor) = await ScanKeys(redisDb, queryParams);
+
+            await RedisUIMiddleware.ResolveKeyDetails(redisDb, keys);
+
+            layoutModel.Section = Main.Build(keys, nextCursor);
+            await context.Response.WriteAsync(Layout.Build(layoutModel, _settings));
+        }
+
+        private bool IsPathMatch(HttpContext context) =>
+            context.Request.Path.ToString().StartsWith(_settings.Path);
+
+        private bool IsAuthorized(HttpContext context) =>
+            _settings.AuthorizationFilter == null || _settings.AuthorizationFilter.Authorize(context);
+
+        private static int GetCurrentDb(HttpContext context)
+        {
+            if (context.Request.Query.TryGetValue("db", out var dbValue) && int.TryParse(dbValue, out var parsedDb))
+                return parsedDb;
+            return 0;
+        }
+
+        private static async Task<(object dbSize, List<KeyspaceModel> keyspaces)> GetDbInfo(IDatabase redisDb)
+        {
+            var dbSizeTask = redisDb.ExecuteAsync("DBSIZE");
+            var keyspaceTask = redisDb.ExecuteAsync("INFO", "KEYSPACE");
+            await Task.WhenAll(dbSizeTask, keyspaceTask);
+
+            var keyspaces = keyspaceTask.Result
+                .ToString()
+                .Replace("# Keyspace", "")
+                .Split(new string[] { "\r\n" }, StringSplitOptions.None)
+                .Where(item => !string.IsNullOrEmpty(item))
+                .Select(KeyspaceModel.Instance)
+                .ToList();
+
+            return (dbSizeTask.Result, keyspaces);
+        }
+
+        private bool IsStatisticsRequest(HttpContext context) =>
+            context.Request.Path.ToString() == $"{_settings.Path}/statistics";
+
+        private async Task RenderStatistics(HttpContext context, IDatabase redisDb, List<KeyspaceModel> keyspaces, LayoutModel layoutModel)
+        {
+            var serverTask = redisDb.ExecuteAsync("INFO", "SERVER");
+            var memoryTask = redisDb.ExecuteAsync("INFO", "MEMORY");
+            var statsTask = redisDb.ExecuteAsync("INFO", "STATS");
+            var allTask = redisDb.ExecuteAsync("INFO");
+
+            await Task.WhenAll(serverTask, memoryTask, statsTask, allTask);
+
+            var model = new StatisticsVm
             {
-                context.Request.EnableBuffering();
+                Keyspaces = keyspaces,
+                Server = ServerModel.Instance(serverTask.Result.ToString()),
+                Memory = MemoryModel.Instance(memoryTask.Result.ToString()),
+                Stats = StatsModel.Instance(statsTask.Result.ToString()),
+                AllInfo = allTask.Result.ToString().ToInfo()
+            };
 
-                using var reader = new StreamReader(context.Request.Body, leaveOpen: true);
-                var body = await reader.ReadToEndAsync();
-                context.Request.Body.Position = 0;
+            layoutModel.Section = Statistics.Build(model);
+            await context.Response.WriteAsync(Layout.Build(layoutModel, _settings));
+        }
 
-                if (!string.IsNullOrWhiteSpace(body))
-                {
-                    if (JsonSerializer.Deserialize<PostModel>(body) is { } postModel)
-                    {
-                        if (!string.IsNullOrWhiteSpace(postModel.DelKey))
-                            await redisDb.KeyDeleteAsync(postModel.DelKey);
+        private static async Task ProcessPostBody(HttpContext context, IDatabase redisDb)
+        {
+            context.Request.EnableBuffering();
+            using var reader = new StreamReader(context.Request.Body, leaveOpen: true);
+            var body = await reader.ReadToEndAsync();
+            context.Request.Body.Position = 0;
 
-                        if (!string.IsNullOrWhiteSpace(postModel.InsertKey) &&
-                            !string.IsNullOrWhiteSpace(postModel.InsertValue))
-                        {
-                            await redisDb.StringSetAsync(postModel.InsertKey, postModel.InsertValue);
-                        }
-                    }
-                }
+            if (string.IsNullOrWhiteSpace(body)) return;
+
+            if (JsonSerializer.Deserialize<PostModel>(body) is not { } postModel) return;
+
+            if (!string.IsNullOrWhiteSpace(postModel.DelKey))
+                await redisDb.KeyDeleteAsync(postModel.DelKey);
+
+            if (!string.IsNullOrWhiteSpace(postModel.InsertKey) &&
+                !string.IsNullOrWhiteSpace(postModel.InsertValue))
+            {
+                await redisDb.StringSetAsync(postModel.InsertKey, postModel.InsertValue);
             }
+        }
 
-            #endregion
-
-
-            #region Escaneo de claves
-
+        private async Task<(List<KeyModel> keys, long nextCursor)> ScanKeys(IDatabase redisDb, RequestQueryParamsModel queryParams)
+        {
             const int MAX_SCAN_LIMIT = 1_000_000;
             var allMatches = new List<string>();
             long scanCursor = queryParams.Cursor;
             long nextCursor = 0;
 
-            
             if (string.IsNullOrEmpty(queryParams.SearchKey))
             {
-                // Sin patrón de búsqueda
                 var result = await redisDb.ExecuteAsync("SCAN", scanCursor.ToString(), "COUNT", queryParams.PageSize.ToString());
                 var innerResult = (RedisResult[])result;
-
                 scanCursor = long.Parse((string)innerResult[0]);
                 allMatches = ((string[])innerResult[1]).ToList();
                 nextCursor = scanCursor;
             }
             else
             {
-                // Con patrón: escaneo acumulativo hasta tope
                 do
                 {
                     var result = await redisDb.ExecuteAsync("SCAN", scanCursor.ToString(), "MATCH", queryParams.SearchKey, "COUNT", 1000);
                     var innerResult = (RedisResult[])result;
-
                     scanCursor = long.Parse((string)innerResult[0]);
                     var partial = (string[])innerResult[1];
-
                     allMatches.AddRange(partial);
 
                     if (allMatches.Count >= queryParams.PageSize || scanCursor == 0 || allMatches.Count >= MAX_SCAN_LIMIT)
                         break;
-
                 } while (true);
 
                 nextCursor = scanCursor;
             }
 
-            // Corta los primeros N si se acumuló más de lo necesario
-            var pagedKeys = allMatches
-                .Take(queryParams.PageSize)
-                .ToList();
+            var pagedKeys = allMatches.Take(queryParams.PageSize).ToList();
+            var keys = pagedKeys.Select(x => new KeyModel { Name = x }).ToList();
+            return (keys, nextCursor);
+        }
 
-            var keys = pagedKeys
-                .Select(x => new KeyModel { Name = x })
-                .ToList();
-
-            #endregion
-
-
-
-
-            #region Resolución de tipos y valores (Concurrente)
-
-            var semaphore = new SemaphoreSlim(15);
+        private static async Task ResolveKeyDetails(IDatabase redisDb, List<KeyModel> keys)
+        {
+            int maxConcurrency = Math.Max(1, Environment.ProcessorCount);
+            var semaphore = new SemaphoreSlim(maxConcurrency);
             await Parallel.ForEachAsync(keys, async (key, ct) =>
             {
                 await semaphore.WaitAsync(ct);
@@ -203,17 +201,6 @@ namespace RedisUI
                     semaphore.Release();
                 }
             });
-
-            #endregion
-
-            #region Renderizado de vista principal
-
-            layoutModel.Section = Main.Build(keys, nextCursor);
-            await context.Response.WriteAsync(Layout.Build(layoutModel, _settings));
-
-            #endregion
-
-
         }
     }
 }

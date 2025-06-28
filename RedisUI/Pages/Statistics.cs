@@ -1,5 +1,4 @@
 ﻿using RedisUI.Models;
-using System.Text;
 using RedisUI.Helpers;
 using RedisUI.Contents;
 using System.Linq;

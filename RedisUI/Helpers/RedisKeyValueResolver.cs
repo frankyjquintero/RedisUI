@@ -24,67 +24,17 @@ namespace RedisUI.Helpers
             {
                 var type = await db.KeyTypeAsync(key);
                 var ttl = await db.KeyTimeToLiveAsync(key);
-
-                // Obtener el tamaño de la key en memoria (en bytes)
                 var memResult = await db.ExecuteAsync("MEMORY", "USAGE", key);
-                long sizeInBytes = memResult.IsNull ? 0 : (long)memResult;
-                double sizeInKilobytes = Math.Round(sizeInBytes / 1024.0, 2); // KB con dos decimales
+                double sizeInKilobytes = Math.Round((memResult.IsNull ? 0 : (long)memResult) / 1024.0, 2);
 
-                RedisKeyDetails result = new()
+                var result = new RedisKeyDetails
                 {
                     Type = type.ToString(),
                     TTL = ttl?.TotalSeconds is > 0 ? (long?)ttl.Value.TotalSeconds : null,
                     Badge = GetBadge(type),
-                    Length = sizeInKilobytes
+                    Length = sizeInKilobytes,
+                    Value = await GetValueAsync(db, key, type, limit)
                 };
-
-                switch (type)
-                {
-                    case RedisType.String:
-                        var str = await db.StringGetAsync(key);
-                        result.Value = str.ToString();
-                        break;
-
-                    case RedisType.Hash:
-                        var hash = (await db.HashGetAllAsync(key) ?? Array.Empty<HashEntry>()).Take(limit).ToArray();
-                        result.Value = hash.ToDictionary(x => x.Name.ToString(), x => (object)x.Value.ToString());
-                        break;
-
-                    case RedisType.List:
-                        var list = await db.ListRangeAsync(key, 0, limit - 1);
-                        result.Value = list.Select(x => x.ToString()).ToList();
-                        break;
-
-                    case RedisType.Set:
-                        var set = (await db.SetMembersAsync(key)).Take(limit);
-                        result.Value = set.Select(x => x.ToString()).ToList();
-                        break;
-
-                    case RedisType.SortedSet:
-                        var sortedSet = await db.SortedSetRangeByRankWithScoresAsync(key, 0, limit - 1);
-                        result.Value = sortedSet
-                            .Select(x => new { Element = x.Element.ToString(), Score = x.Score })
-                            .ToList();
-                        break;
-
-                    case RedisType.Stream:
-                        var stream = await db.StreamReadAsync(key, "0-0", limit);
-                        result.Value = stream.Select(e => new
-                        {
-                            Id = e.Id.ToString(),
-                            Fields = e.Values.ToDictionary(f => f.Name.ToString(), f => (object)f.Value.ToString())
-                        }).ToList();
-                        break;
-
-                    case RedisType.None:
-                        result.Value = "(Key Not Found)";
-                        break;
-
-                    default:
-                        result.Value = "(Unsupported or Module Type)";
-                        break;
-                }
-
                 return result;
             }
             catch (Exception ex)
@@ -98,6 +48,27 @@ namespace RedisUI.Helpers
             }
         }
 
+        private static async Task<object> GetValueAsync(IDatabase db, string key, RedisType type, int limit)
+        {
+            return type switch
+            {
+                RedisType.String => (await db.StringGetAsync(key)).ToString(),
+                RedisType.Hash => (await db.HashGetAllAsync(key) ?? Array.Empty<HashEntry>()).Take(limit)
+                    .ToDictionary(x => x.Name.ToString(), x => (object)x.Value.ToString()),
+                RedisType.List => (await db.ListRangeAsync(key, 0, limit - 1)).Select(x => x.ToString()).ToList(),
+                RedisType.Set => (await db.SetMembersAsync(key)).Take(limit).Select(x => x.ToString()).ToList(),
+                RedisType.SortedSet => (await db.SortedSetRangeByRankWithScoresAsync(key, 0, limit - 1))
+                    .Select(x => new { Element = x.Element.ToString(), Score = x.Score }).ToList(),
+                RedisType.Stream => (await db.StreamReadAsync(key, "0-0", limit)).Select(e => new
+                {
+                    Id = e.Id.ToString(),
+                    Fields = e.Values.ToDictionary(f => f.Name.ToString(), f => (object)f.Value.ToString())
+                }).ToList(),
+                RedisType.None => "(Key Not Found)",
+                _ => "(Unsupported or Module Type)"
+            };
+        }
+
         private static string GetBadge(RedisType type) => type switch
         {
             RedisType.String => "badge-purple",
@@ -109,8 +80,6 @@ namespace RedisUI.Helpers
             RedisType.None => "badge-gray",
             _ => "badge-dark"
         };
-
-
     }
 
 }
