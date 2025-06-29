@@ -20,7 +20,7 @@ This fork includes major improvements over the original RedisUI:
   - Async parallel Redis key & stat resolution
 - ✅ **Middleware refactor**: Clearer API with overloads instead of optional params.
 - ✅ **.NET 9 support**: Added to `TargetFrameworks`.
-
+- Extras
 ---
 
 ## 🚀 Installation
@@ -34,13 +34,20 @@ dotnet add package RedisUI.Dashboard
 
 This project has undergone several significant improvements to enhance functionality, robustness, and forward compatibility. Notable changes include:
 
-- ✅ **Support for additional Redis data types**: Stream, Sorted Set, Hash, and more are now properly rendered.
-- ✅ **Error prevention enhancements**: Null checks were added to avoid potential `NullReferenceException` issues.
-- ✅ **Cleaner JSON handling**: Implemented JSON mapping and Monokai syntax highlighting for Redis key inspection.
-- ✅ **Improved UI stability**: Refactored HTML rendering, redesigned UI, and cleaned up JS, including cursor-based SCAN enhancements.
-- ✅ **Optimized performance**: Parallel async resolution for Redis statistics and key values; optimized ConnectionMultiplexer singleton.
-- ✅ **Simplified middleware API**: Refactored `RedisUIMiddleware`, `RedisKeyValueResolver`, and POST body handling; fixed overloading mechanism.
-- ✅ **Extended .NET support**: Added compatibility for .NET 9 and updated TargetFrameworks accordingly.
+- ✅ **Support for additional Redis data types**: Stream, Sorted Set, Hash, and more are now properly rendered, enabling a complete view of Redis contents regardless of type.
+- ✅ **Error prevention enhancements**: Added null-safety guards and robust checks to prevent potential `NullReferenceException` issues identified via static analysis tools.
+- ✅ **Cleaner JSON handling**: Redis key values are now intelligently parsed into JSON with Monokai syntax highlighting, making complex structures easier to inspect and debug.
+- ✅ **Improved UI stability and experience**: Reorganized HTML layout with Bootstrap 5.3, cleaned JS logic, and improved key loading via cursor-based SCAN to support large datasets.
+- ✅ **Optimized performance**: Implemented async parallel processing for Redis `INFO` and key type/value resolution, along with a singleton-managed `ConnectionMultiplexer`.
+- ✅ **Simplified middleware API**: Refactored core middleware components (`RedisUIMiddleware`, `RedisKeyValueResolver`) and transitioned from optional parameters to clearer overloads for maintainability.
+- ✅ **Extended .NET support**: Added multi-target support for .NET 6, 7, 8, and 9 for wider compatibility and future readiness.
+- ✅ **Authorization filters added**: Introduced pluggable security options including Basic Auth, JWT Role, Claim-based, IP Whitelisting, and environment-based access control.
+- ✅ **Dashboard path customization**: You can now configure the Redis UI path, enabling cleaner route separation (e.g., `/redis-admin`).
+- ✅ **Package metadata improvements**: Updated NuGet packaging details (license, readme, tags, project URL) for better discoverability and transparency.
+- ✅ **Redis key explorer UI improvements**: TreeView redesigned for flat mode, zebra-style list groups, expandable folders, delete buttons, and TTL/size display.
+
+> These improvements aim to modernize and stabilize the RedisUI integration, making it more production-ready and developer-friendly.
+
 
 ## 🔧 Custom JS and CSS for RedisUI Viewer
 
@@ -256,7 +263,8 @@ These filters give you flexibility to secure your Redis UI in the way that best 
 
 
 **UI**
-![image](https://raw.githubusercontent.com/frankyjquintero/RedisUI/refs/heads/main/Images/460253727-fe86c26b-8e66-4f21-b3ed-d08c5d28e03c.png)
+![image](https://raw.githubusercontent.com/frankyjquintero/RedisUI/refs/heads/main/Images/460269006-f34f3242-f660-49a0-8d50-5e62125a5640.png)
+![image](https://raw.githubusercontent.com/frankyjquintero/RedisUI/refs/heads/main/Images/460269034-fff57472-aa3d-431b-a015-f804af69fadb.png)
 
 **Server Statistics**
 ![image](https://raw.githubusercontent.com/frankyjquintero/RedisUI/refs/heads/main/Images/460253801-1a9ed6db-bbe7-41ec-92e9-701ed37bae1b.png)
