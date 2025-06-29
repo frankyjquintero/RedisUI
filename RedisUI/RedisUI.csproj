@@ -35,11 +35,13 @@
 			✅ Middleware API improvements with overloads instead of optionals
 			✅ Extended support to .NET 9 in TargetFrameworks
 			✅ Dashboard Authorization Filters
+			✅ Added RedisUISettings for configuration jsonEditor, highlight.js, and Bootstrap links
+			✅ Added BuildTreeView, colored cells, and improved key rendering
 		</PackageReleaseNotes>
 
 		<IncludeSymbols>True</IncludeSymbols>
 		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
-		<Version>2.1.0</Version>
+		<Version>2.2.0</Version>
 	</PropertyGroup>
 	<ItemGroup>
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />

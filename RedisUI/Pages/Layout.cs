@@ -21,7 +21,7 @@ namespace RedisUI.Pages
                 {head}
                 <body>
                     {nav}
-                    <div class=""container"">
+                    <div class=""container-fluid"">
                         <br/>
                         {section}
                     </div>
@@ -54,6 +54,9 @@ namespace RedisUI.Pages
                 <link href=""{settings?.HighlightTheme ?? ""}"" rel=""stylesheet"">
                 <script src=""{settings?.HighlightJs ?? ""}""></script>
                 <script src=""{settings?.HighlightJson ?? ""}""></script>
+                <link href=""{settings?.JsonEditorCss ?? ""}"" rel=""stylesheet"" type=""text/css"">
+                <script src=""{settings?.JsonEditorJs ?? ""}""></script>                
+
                 <style>
                     .dropdown-menu {{ z-index: 1021; }}
                     .badge-purple  {{background-color: #6f42c1; color: #fff; }}

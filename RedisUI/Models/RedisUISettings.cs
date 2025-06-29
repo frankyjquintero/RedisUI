@@ -49,5 +49,8 @@ namespace RedisUI
         /// </summary>
         public string HighlightJson { get; set; } = "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js";
 
+        public string JsonEditorCss { get; set; } = "https://cdn.jsdelivr.net/npm/jsoneditor@9.10.0/dist/jsoneditor.min.css";
+        public string JsonEditorJs { get; set; } = "https://cdn.jsdelivr.net/npm/jsoneditor@9.10.0/dist/jsoneditor.min.js";
+
     }
 }
