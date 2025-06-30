@@ -6,28 +6,100 @@
         {
 
             return $@"
-<div class=""modal fade"" id=""insertModal"" tabindex=""-1"" aria-labelledby=""insertModalLabel"" aria-hidden=""true"">
-  <div class=""modal-dialog"">
-    <div class=""modal-content"">
-      <div class=""modal-header"">
-        <h1 class=""modal-title fs-5"" id=""insertModalLabel"">Add or Edit Key</h1>
-        <button type=""button"" class=""btn-close"" data-bs-dismiss=""modal"" aria-label=""Close""></button>
-      </div>
-      <div class=""modal-body"">
-        <div class=""mb-3"">
-          <input type=""text"" class=""form-control"" id=""insertKey"" placeholder=""Key"" onkeyup=""checkRequired()"">
-        </div>
-        <div class=""mb-3"">
-          <textarea rows=""10"" type=""text"" class=""form-control"" id=""insertValue"" placeholder=""Value"" onkeyup=""checkRequired()""></textarea>
-        </div>
-      </div>
-      <div class=""modal-footer"">
-        <button type=""button"" class=""btn btn-secondary"" data-bs-dismiss=""modal"">Close</button>
-        <button type=""button"" class=""btn btn-primary"" onclick=""saveKey()"" id=""btnSave"" disabled>Save</button>
-      </div>
-    </div>
-  </div>
-</div>";
+                <!-- Insert Modal -->
+                <div class=""modal fade"" id=""insertModal"" tabindex=""-1"" aria-labelledby=""insertModalLabel"" aria-hidden=""true"">
+                  <div class=""modal-dialog modal-lg modal-dialog-scrollable"">
+                    <div class=""modal-content"">
+                      <div class=""modal-header bg-success text-white"">
+                        <h5 class=""modal-title"" id=""insertModalLabel"">Insert Redis Key</h5>
+                        <button type=""button"" class=""btn-close"" data-bs-dismiss=""modal"" aria-label=""Close""></button>
+                      </div>
+
+                      <div class=""modal-body"">
+                        <form id=""insertForm"">
+                          <div class=""mb-3"">
+                            <label for=""insertKey"" class=""form-label"">Key Name</label>
+                            <input type=""text"" class=""form-control"" id=""insertKey"" required>
+                          </div>
+
+                          <div class=""mb-3"">
+                            <label for=""insertType"" class=""form-label"">Data Type</label>
+                            <select class=""form-select"" id=""insertType"" onchange=""onTypeChange()"">
+                              <option value=""string"">String</option>
+                              <option value=""list"">List</option>
+                              <option value=""set"">Set</option>
+                              <option value=""sortedset"">SortedSet</option>
+                              <option value=""hash"">Hash</option>
+                              <option value=""stream"">Stream</option>
+                            </select>
+                          </div>
+
+                          <div class=""mb-3"">
+                            <label for=""insertValue"" class=""form-label"">Value (JSON format)</label>
+                            <textarea class=""form-control"" id=""insertValue"" rows=""5"" required></textarea>
+                            <div class=""form-text"">Example for list: [""a"",""b""] — for hash: {{""a"":""b""}}</div>
+                          </div>
+
+                        </form>
+                      </div>
+
+                      <div class=""modal-footer"">
+                        <button type=""button"" class=""btn btn-secondary"" data-bs-dismiss=""modal"">Cancel</button>
+                        <button type=""button"" class=""btn btn-success"" onclick=""saveKey()"">Save</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                 <script>
+                   {BuildScriptJs()}
+                </script>                    
+                ";
+
         }
+
+        private static string BuildScriptJs() => $@"
+            function onTypeChange() {{
+              const type = document.getElementById(""insertType"").value;
+              const valueInput = document.getElementById(""insertValue"");
+              const valueHint = document.getElementById(""valueHint"");
+
+              switch (type) {{
+                case ""string"":
+                  valueInput.placeholder = `""hello world""`;
+                  valueHint.textContent = `Example for string: ""hello world""`;
+                  break;
+
+                case ""list"":
+                  valueInput.placeholder = `[""item1"", ""item2"", ""item3""]`;
+                  valueHint.textContent = `Example for list: [""item1"", ""item2""]`;
+                  break;
+
+                case ""set"":
+                  valueInput.placeholder = `[""itemA"", ""itemB""]`;
+                  valueHint.textContent = `Example for set: [""itemA"", ""itemB""] (duplicates ignored)`;
+                  break;
+
+                case ""sortedset"":
+                  valueInput.placeholder = `[{{""score"": 1, ""member"": ""a""}}, {{""score"": 2, ""member"": ""b""}}]`;
+                  valueHint.textContent = `Example for sorted set: [{{""score"": 1, ""member"": ""a""}}]`;
+                  break;
+
+                case ""hash"":
+                  valueInput.placeholder = `{{""field1"": ""value1"", ""field2"": ""value2""}}`;
+                  valueHint.textContent = `Example for hash: {{""name"": ""Alice"", ""age"": 30}}`;
+                  break;
+
+                case ""stream"":
+                  valueInput.placeholder = `[{{""id"": ""*"", ""fields"": {{""foo"": ""bar""}}}}]`;
+                  valueHint.textContent = `Example for stream: [{{""id"": ""*"", ""fields"": {{""foo"": ""bar""}}}}]`;
+                  break;
+
+                default:
+                  valueInput.placeholder = """";
+                  valueHint.textContent = """";
+              }}
+            }}
+
+        ";
     }
 }

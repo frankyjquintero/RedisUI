@@ -1,30 +1,20 @@
 ﻿using RedisUI.Contents;
-using RedisUI.Helpers;
-using RedisUI.Models;
-using System.Collections.Generic;
-using System.Text;
-using System.Text.Json;
 
 namespace RedisUI.Pages
 {
     public static class Main
     {
-        public static string Build(List<KeyModel> keys, long next)
+        public static string BuildBase(RedisUISettings settings)
         {
-            var tbody = BuildTableBody(keys);
-            var listView = BuildTable(tbody);
-            var treeView = BuildTreeView(keys);
-
             var html = $@"
                 {InsertModal.Build()}
-                {BuildHeader(next)}
+                {BuildHeader()}
                 <div class=""row justify-content-start"">
                     <div class='col-8' style='max-height: 750px; overflow-y: auto;'>
                       <div id='listView' class='d-none'>
-                         {listView}
+                        {BuildBaseTable()}
                       </div>
                       <div id='treeView'>
-                         {treeView}
                       </div>
                     </div>
                     <div class='col-4'  style='max-height: 750px; overflow-y: auto;'>
@@ -32,38 +22,16 @@ namespace RedisUI.Pages
                     </div>
                 </div>
                 <script>
-                    {BuildScript(next)}
+                    const API_PATH_BASE_URL = '{settings.Path}';
+                    {BuildScript()}
                 </script>
             ";
 
             return html;
         }
 
-
-        private static string BuildTreeView(List<KeyModel> keys)
-        {
-            var tree = TreeHelper.Build(keys);
-            var html = new StringBuilder();
-            html.Append("<div class='card p-3'><ul class='list-group'>");
-            TreeHelper.RenderTree(tree, html);
-            html.Append("</ul></div>");
-            return html.ToString();
-        }
-
-
-        private static string BuildTableBody(List<KeyModel> keys)
-        {
-            var tbody = new StringBuilder();
-            foreach (var key in keys)
-            {
-                var json = JsonSerializer.Serialize(key.Detail.Value);
-                var columns = $"<td><span class=\"badge {key.Detail.Badge}\">{key.KeyType.ToString().ToUpper()}</span></td><td>{key.Name}</td><td>{key.Detail.Length}</td><td>{(key.Detail.TTL.HasValue ? $"{key.Detail.TTL} s" : "∞")}</td>";
-                tbody.Append($"<tr style=\"cursor: pointer;\" data-value='{json}' data-key='{key.Name}'>{columns}<td class=\"text-center\"><a onclick=\"confirmDelete('{key.Name}')\" class=\"btn btn-sm btn-outline-danger\"><span>{Icons.Delete}</span></a></td></tr>");
-            }
-            return tbody.ToString();
-        }
-
-        private static string BuildHeader(long next) => $@"
+        #region HTML
+        private static string BuildHeader() => $@"
           <div class=""container-fluid"">
             <div class=""row align-items-center mb-3"">
               <div class=""col-sm-12 col-md-6"">
@@ -72,8 +40,8 @@ namespace RedisUI.Pages
               <div class=""col-sm-12 col-md-6"">
                 <div class=""d-flex justify-content-end align-items-center gap-2 flex-nowrap"">
                     <div class=""d-flex my-2"">
-                      <button id=""btnNext"" class=""btn btn-primary"" onclick=""nextPage()"">
-                        {(next == 0 ? "Back to Top" : "Next")}
+                      <button id=""btnNext"" class=""btn btn-primary"" onclick=""nextPage(0)"">
+                        Next
                       </button>
                     </div>
                    <div class=""btn-group btn-group-sm me-2"" role=""group"">
@@ -98,7 +66,7 @@ namespace RedisUI.Pages
             </div>
           </div>";
 
-        private static string BuildTable(string tbody) => $@"
+        private static string BuildBaseTable() => $@"
           <div class=""container-fluid"">
                 <div class=""table-responsive card shadow-sm"">
                   <table class=""table table-striped table-hover mb-0"" id=""redisTable"">
@@ -111,8 +79,7 @@ namespace RedisUI.Pages
                         <th class=""text-center"">Action</th>
                       </tr>
                     </thead>
-                    <tbody>
-                      {tbody}
+                    <tbody id='tableBody'>
                     </tbody>
                   </table>
                 </div>
@@ -141,34 +108,34 @@ namespace RedisUI.Pages
                   <div id=""jsonEditorContainer"" style=""height: 100%;""></div>
                 </div>
               </div>";
+        #endregion HTML
 
+        #region JS
+        private static string BuildScript()
+        {
+            return $@"
+                {BuildDOMContentLoaded()}
+                {BuildJsSearch()}
+                {BuildJsHeader()}
+                {BuildJsEditor()}
+                {BuildJsTable()}
+                {BuildTreeView()}
+                {BuildScriptActions()}
+            ";
+        }
 
-        private static string BuildScript(long next) => $@"
+        private static string BuildDOMContentLoaded() => $@"
             document.addEventListener('DOMContentLoaded', function () {{
                 initializeSearch();
                 highlightActiveDbAndSize();
-                addRowClickListeners();
-                setupNextButton();
+                setupNextButton(0);
             }});
+        ";
 
-            document.addEventListener(""DOMContentLoaded"", function () {{
-                document.querySelectorAll("".collapse"").forEach(function (el) {{
-                    el.addEventListener(""shown.bs.collapse"", function () {{
-                        const icon = document.querySelector(`#icon_${{el.id}}`);
-                        if (icon) icon.textContent = ""📂"";
-                    }});
-
-                    el.addEventListener(""hidden.bs.collapse"", function () {{
-                        const icon = document.querySelector(`#icon_${{el.id}}`);
-                        if (icon) icon.textContent = ""📁"";
-                    }});
-                }});
-            }});
-
+        private static string BuildJsSearch() => $@"
             function initializeSearch() {{
                 const params = new URLSearchParams(window.location.search);
                 const db = params.get('db') || '0';
-                const key = params.has('key') ? decodeURIComponent(params.get('key')) : '';
                 const searchContainer = document.getElementById('search');
                 searchContainer.innerHTML = '';
     
@@ -176,8 +143,7 @@ namespace RedisUI.Pages
                 sInput.type = 'text';
                 sInput.className = 'form-control';
                 sInput.placeholder = 'key or pattern...';
-                sInput.value = key;
-
+                sInput.id = 'searchInput';
                 sInput.addEventListener('keydown', function(e) {{
                     if (e.key === 'Enter') {{
                         e.preventDefault();
@@ -192,7 +158,9 @@ namespace RedisUI.Pages
 
                 searchContainer.append(sInput, sBtn);
             }}
+        ";
 
+        private static string BuildJsHeader() => $@"
             function toggleView(view) {{
               document.getElementById('listView').classList.toggle('d-none', view !== 'list');
               document.getElementById('treeView').classList.toggle('d-none', view !== 'tree');
@@ -205,30 +173,14 @@ namespace RedisUI.Pages
                 document.getElementById('size' + (params.get('size') || '10'))?.classList.add('active');
             }}
 
-            function addRowClickListeners() {{
-                document.querySelectorAll('#redisTable tbody tr').forEach(row => {{
-                    row.addEventListener('click', function () {{
-                        const detail = JSON.parse(this.dataset.value);
-                        renderDetailPanel(detail);
-                    }});
-                }});
-            }}
-
-            function setupNextButton() {{
+            function setupNextButton(cursor) {{
                 const btnNext = document.getElementById('btnNext');
-                btnNext.onclick = () => nextPage();
-                btnNext.hidden = ('0' === '{next}');
+                btnNext.onclick = () => nextPage(cursor);
+                btnNext.hidden = (0 === cursor);
             }}
+        ";
 
-            function renderDetailPanel2(detail) {{
-                const valueEl = document.getElementById('valueContent');
-                if (!valueEl) return;
-                valueEl.removeAttribute('data-highlighted');
-                valueEl.className = 'language-json';
-                valueEl.textContent = JSON.stringify(detail, null, 2);
-                hljs.highlightElement(valueEl);
-            }}
-            
+        private static string BuildJsEditor() => $@"
             let jsonEditorInstance;
 
             function onViewerChange(mode) {{
@@ -270,41 +222,269 @@ namespace RedisUI.Pages
                 jsonEditorInstance.setMode(mode);
               }}
             }}
+        ";
 
-            function showPage(cursor, db, key) {{
-                const params = new URLSearchParams();
-                params.set('cursor', cursor);
-                params.set('db', db);
-                const activeSizeBtn = document.querySelector('.btn-group button.active');
-                const size = activeSizeBtn ? activeSizeBtn.textContent : '10';
-                params.set('size', size);
-                if (key) params.set('key', key);
-                window.location = window.location.pathname + '?' + params.toString();
+        private static string BuildJsTable() => $@"
+            function renderTableBody(keys) {{
+              const tbody = document.getElementById(""tableBody"");
+              tbody.innerHTML = """";
+
+              keys.forEach(key => {{
+                const tr = document.createElement(""tr"");
+                tr.setAttribute(""data-value"", JSON.stringify(key.detail.value));
+                tr.setAttribute(""data-key"", key.name);
+
+                tr.innerHTML = `
+                  <td><span class=""badge ${{key.detail.badge}}"">${{key.detail.type.toUpperCase()}}</span></td>
+                  <td>${{key.name}}</td>
+                  <td>${{key.detail.length}}</td>
+                  <td>${{key.detail.ttl ? `${{key.detail.ttl}} s` : ""∞""}}</td>
+                  <td class=""text-center"">
+                    <a onclick=""confirmDelete('${{key.name}}')"" class=""btn btn-sm btn-outline-danger"">
+                      🗑
+                    </a>
+                  </td>
+                `;
+
+                tr.addEventListener(""click"", () => renderDetailPanel(key.detail.value));
+                tbody.appendChild(tr);
+              }});
+            }}
+        ";
+
+        private static string BuildTreeView() => $@"
+            function renderTreeView(keys) {{
+              const tree = buildTreeStructure(keys);
+              const container = document.getElementById(""treeView"");
+              container.innerHTML = """"; // limpiar
+              const ul = document.createElement(""ul"");
+              ul.className = ""list-group"";
+              renderTreeRecursive(tree, ul);
+              container.appendChild(ul);
             }}
 
-            function nextPage() {{
-                showPage({next}, new URLSearchParams(window.location.search).get('db') || '0', new URLSearchParams(window.location.search).get('key') || '');
+            function buildTreeStructure(keys) {{
+              const root = {{}};
+              keys.forEach(key => {{
+                const parts = key.name.split("":"");
+                let node = root;
+                for (const part of parts) {{
+                  node.children = node.children || {{}};
+                  node.children[part] = node.children[part] || {{}};
+                  node = node.children[part];
+                }}
+                node.key = key;
+              }});
+              return root;
             }}
 
-            function confirmDelete(del) {{
-                if (!confirm(`Are you sure to delete key '${{del}}'?`)) return;
-                fetch(window.location.href, {{
-                    method: 'POST',
-                    body: JSON.stringify({{ DelKey: del }}),
-                    headers: {{ 'Content-Type': 'application/json' }}
-                }}).then(() => window.location.reload());
+            function renderTreeRecursive(node, parentElement, prefix = """", depth = 0, indexRef = {{ i: 0 }}) {{
+              if (!node.children) return;
+
+              const childrenKeys = Object.keys(node.children).sort();
+
+              for (const childName of childrenKeys) {{
+                const childNode = node.children[childName];
+                const fullPath = prefix ? `${{prefix}}:${{childName}}` : childName;
+                const zebraClass = indexRef.i++ % 2 === 0 ? ""bg-light"" : ""bg-white"";
+
+                const li = document.createElement(""li"");
+                li.className = `list-group-item p-2 ${{zebraClass}}`;
+
+                if (childNode.children) {{
+                  const collapseId = `collapse_${{fullPath.replace(/:/g, ""_"")}}`;
+                  const iconId = `icon_${{collapseId}}`;
+                  const expanded = depth <= 0;
+
+                  const divToggle = document.createElement(""div"");
+                  divToggle.className = ""d-flex justify-content-between align-items-center"";
+                  divToggle.setAttribute(""data-bs-toggle"", ""collapse"");
+                  divToggle.setAttribute(""href"", `#${{collapseId}}`);
+                  divToggle.setAttribute(""role"", ""button"");
+
+                  divToggle.innerHTML = `
+                    <a class=""fw-bold text-decoration-none text-dark"">
+                      <span id=""${{iconId}}"" class=""me-1"">📁</span>${{childName}}
+                    </a>`;
+
+                  const collapseDiv = document.createElement(""div"");
+                  collapseDiv.className = `collapse ms-3 ${{expanded ? ""show"" : """"}}`;
+                  collapseDiv.id = collapseId;
+
+                  const ul = document.createElement(""ul"");
+                  ul.className = ""list-group list-group-flush"";
+                  renderTreeRecursive(childNode, ul, fullPath, depth + 1, indexRef);
+                  collapseDiv.appendChild(ul);
+
+                  li.appendChild(divToggle);
+                  li.appendChild(collapseDiv);
+
+                  // eventos ícono 📁/📂
+                  collapseDiv.addEventListener(""shown.bs.collapse"", () => {{
+                    document.getElementById(iconId).textContent = ""📂"";
+                  }});
+                  collapseDiv.addEventListener(""hidden.bs.collapse"", () => {{
+                    document.getElementById(iconId).textContent = ""📁"";
+                  }});
+                }}
+
+                if (childNode.key) {{
+                  const key = childNode.key;
+
+                  const detailSpan = document.createElement(""span"");
+                  detailSpan.className = ""text-break"";
+                  detailSpan.style.cursor = ""pointer"";
+                  detailSpan.dataset.key = key.name;
+                  detailSpan.dataset.value = JSON.stringify(key.detail.value);
+
+                  const badge = `<span class='badge ${{key.detail.badge}}'>${{key.detail.type.toUpperCase()}}</span>`;
+                  detailSpan.innerHTML = `
+                    🔑 ${{badge}} ${{key.name}}
+                    <small class=""text-muted"">
+                      TTL: <span class=""badge bg-info"">${{key.detail.ttl ?? ""∞""}}</span> |
+                      Size: ${{key.detail.length}} KB
+                    </small>`;
+
+                  detailSpan.onclick = () => renderDetailPanel(JSON.parse(detailSpan.dataset.value));
+
+                  const deleteBtn = document.createElement(""a"");
+                  deleteBtn.className = ""btn btn-sm btn-outline-danger"";
+                  deleteBtn.innerHTML = ""🗑"";
+                  deleteBtn.onclick = () => confirmDelete(key.name);
+
+                  const divKey = document.createElement(""div"");
+                  divKey.className = ""d-flex justify-content-between align-items-center"";
+                  divKey.appendChild(detailSpan);
+                  divKey.appendChild(deleteBtn);
+
+                  li.appendChild(divKey);
+                }}
+
+                parentElement.appendChild(li);
+              }}
             }}
+        ";
+
+        private static string BuildScriptActions() => $@"
+
+            function showPage(cursor = 0, db = '0') {{
+              const params = new URLSearchParams();
+              params.set('cursor', cursor);
+              params.set('db', db);
+  
+              const activeSizeBtn = document.querySelector('.btn-group button.active');
+              const size = activeSizeBtn ? activeSizeBtn.textContent : '10';
+              params.set('size', size);
+              
+              const key = document.getElementById('searchInput')?.value || '';
+              params.set('key', key);
+
+              fetch(`${{API_PATH_BASE_URL}}/keys?${{params.toString()}}`)
+                .then(res => res.json())
+                .then(data => {{
+                  renderTableBody(data.keys);
+                  renderTreeView(data.keys);
+                  setupNextButton(data.cursor);
+                }})
+                .catch(err => {{
+                  console.error(""Error loading keys"", err);
+                }});
+            }}
+            
+            function nextPage(cursor) {{
+                showPage(cursor, new URLSearchParams(window.location.search).get('db') || '0');
+            }}
+
+            function setdb(db){{
+                var currentPath = window.location.href.replace(window.location.search, '');
+                window.location = currentPath.replace('#', '') + '?db=' + db;
+            }}
+
+            function setSize(size) {{
+                document.querySelectorAll('.btn-group button').forEach(btn => {{
+                    btn.classList.remove('active');
+                }});
+
+                const activeBtn = document.getElementById('size' + size);
+                if (activeBtn) {{
+                    activeBtn.classList.add('active');
+                }}
+                const url = new URL(window.location);
+                const params = url.searchParams;
+                if (!params.has('db')) {{
+                    params.set('db', '0');
+                }}
+
+                showPage(0, params.get('db'));
+            }}
+
+            function confirmDelete(delKey) {{
+                if (!confirm(`Are you sure to delete key '${{delKey}}'?`)) return;
+
+                fetch(`${{API_PATH_BASE_URL}}/keys/${{encodeURIComponent(delKey)}}`, {{
+                    method: 'DELETE'
+                }})
+                .then(response => {{                    
+                    if (response.status != 204) throw new Error('Failed to delete key');
+                    const url = new URL(window.location);
+                    const params = url.searchParams;
+                    if (!params.has('db')) {{
+                        params.set('db', '0');
+                    }}
+                    showPage(0, params.get('db'));
+                }})
+                .catch(err => {{
+                    console.error(""Error deleting key:"", err);
+                    alert(""An error occurred while deleting the key."");
+                }});
+            }}
+
 
             function saveKey() {{
-                fetch(window.location.href, {{
-                    method: 'POST',
-                    body: JSON.stringify({{
-                        InsertKey: document.getElementById('insertKey').value,
-                        InsertValue: document.getElementById('insertValue').value
-                    }}),
-                    headers: {{ 'Content-Type': 'application/json' }}
-                }}).then(() => window.location.reload());
+              const key = document.getElementById(""insertKey"").value.trim();
+              const type = document.getElementById(""insertType"").value.trim().toLowerCase();
+              const rawValue = document.getElementById(""insertValue"").value.trim();
+
+              if (!key || !type || !rawValue) {{
+                alert(""Please fill in all fields."");
+                return;
+              }}
+
+              let parsedValue;
+              try {{
+                parsedValue = JSON.parse(rawValue);
+              }} catch (err) {{
+                alert(""Value must be valid JSON."");
+                return;
+              }}
+
+              const payload = {{
+                name: key,
+                keyType: type,
+                value: parsedValue
+              }};
+
+              fetch(`${{API_PATH_BASE_URL}}/keys`, {{
+                method: ""POST"",
+                headers: {{
+                  ""Content-Type"": ""application/json""
+                }},
+                body: JSON.stringify(payload)
+              }})
+                .then(response => {{
+                  if (response.status != 201) throw new Error(""Failed to save key"");
+                  alert(""Key saved successfully."");
+                  document.getElementById(""insertForm"").reset();
+                  const modal = bootstrap.Modal.getInstance(document.getElementById(""insertModal""));
+                  modal.hide();
+                  window.location.reload();
+                }})
+                .catch(err => {{
+                  console.error(""Save failed:"", err);
+                  alert(""Error saving key."");
+                }});
             }}
+
 
             function checkRequired() {{
                 const k = document.getElementById('insertKey').value;
@@ -312,5 +492,7 @@ namespace RedisUI.Pages
                 document.getElementById('btnSave').disabled = !(k && v);
             }}
         ";
+
+        #endregion JS
     }
 }

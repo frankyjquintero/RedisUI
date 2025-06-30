@@ -67,23 +67,6 @@ namespace RedisUI.Pages
                     .badge-olive   {{background-color: #6c757d; color: #fff; }}
                     .badge-gray    {{background-color: #adb5bd; color: #fff; }}
                 </style>
-                <script>
-                    function setdb(db){{
-                        var currentPath = window.location.href.replace(window.location.search, '');
-                        window.location = currentPath.replace('#', '') + '?size=10&cursor=0&db=' + db;
-                    }}
-                    function setSize(size) {{
-                        const url = new URL(window.location);
-                        const params = url.searchParams;
-                        if (!params.has('db')) {{
-                            params.set('db', '0');
-                        }}
-                        params.set('size', size);
-                        params.set('cursor', '0');
-                        url.search = params.toString();
-                        window.location = url.pathname + url.search;
-                    }}
-                </script>
             </head>";
         }
 
