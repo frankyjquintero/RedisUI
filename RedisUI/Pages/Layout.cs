@@ -95,8 +95,19 @@ namespace RedisUI.Pages
                     <a class=""navbar-brand"" title=""Statistics"" href=""..{settings?.Path ?? ""}/statistics"">
                         <i class=""bi bi-graph-up""></i>
                     </a>
+                    <button class=""btn btn-sm btn-outline-light ms-2"" onclick=""logout()"" title=""Logout"">
+                        <i class=""bi bi-box-arrow-right""></i>
+                    </button>
                 </div>
-            </nav>";
+            </nav>
+            <script>
+                function logout() {{
+                    // Auth Basic
+                    if (confirm('Are you sure you want to log out?')) {{
+                        window.location.href = ""..{settings?.Path ?? ""}/logout"";
+                    }}
+                }}
+            </script>";
         }
 
         private static string BuildFooter()

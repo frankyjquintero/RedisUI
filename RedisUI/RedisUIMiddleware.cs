@@ -66,6 +66,12 @@ namespace RedisUI
                     HttpMethods.Get,
                     () => RenderIndex(context, layoutModel)
                 ),
+                // logout
+                (
+                    p => p == $"{_settings.Path}/logout",
+                    HttpMethods.Get,
+                    () => HandleLogout(context)
+                ),
                 // Obtener claves
                 (
                     p => p == $"{_settings.Path}/keys",
@@ -121,6 +127,14 @@ namespace RedisUI
 
             context.Response.StatusCode = StatusCodes.Status404NotFound;
         }
+
+        private static async Task HandleLogout(HttpContext context)
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            context.Response.Headers.WWWAuthenticate = "Basic realm=\"Redis Dashboard\"";
+            await context.Response.WriteAsync("Logged out.");
+        }
+
 
         private static async Task HandleGetKeys(HttpContext context, IDatabase redisDb)
         {
