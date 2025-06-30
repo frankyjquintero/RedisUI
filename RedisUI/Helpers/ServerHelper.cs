@@ -30,7 +30,7 @@ namespace RedisUI.Helpers
 
         public static async Task<(List<KeyModel> keys, long nextCursor)> ScanKeys(IDatabase redisDb, RequestQueryParamsModel queryParams)
         {
-            const int MAX_SCAN_LIMIT = 1_000_000;
+            const int MAX_SCAN_LIMIT = 10_000;
             var allMatches = new List<string>();
             long scanCursor = queryParams.Cursor;
             long nextCursor = 0;
@@ -47,7 +47,7 @@ namespace RedisUI.Helpers
             {
                 do
                 {
-                    var result = await redisDb.ExecuteAsync("SCAN", scanCursor.ToString(), "MATCH", queryParams.SearchKey, "COUNT", 1000);
+                    var result = await redisDb.ExecuteAsync("SCAN", scanCursor.ToString(), "MATCH", queryParams.SearchKey, "COUNT", 1_000);
                     var innerResult = (RedisResult[])result;
                     scanCursor = long.Parse((string)innerResult[0]);
                     var partial = (string[])innerResult[1];

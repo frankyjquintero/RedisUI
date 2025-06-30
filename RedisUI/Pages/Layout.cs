@@ -1,5 +1,4 @@
-﻿using RedisUI.Contents;
-using RedisUI.Models;
+﻿using RedisUI.Models;
 using System;
 using System.Text;
 using System.Collections.Generic;
@@ -48,9 +47,10 @@ namespace RedisUI.Pages
             <head>
                 <meta charset=""UTF-8"">
                 <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
-                <title>Redis Integrated UI</title>
+                <title>Redis Integrated UI Dashboard</title>
                 <link href=""{settings?.CssLink ?? ""}"" rel=""stylesheet"" crossorigin=""anonymous"">
                 <script src=""{settings?.JsLink ?? ""}"" crossorigin=""anonymous""></script>
+                <link href=""{settings?.BootstrapIcons ?? ""}"" rel=""stylesheet"" crossorigin=""anonymous"">
                 <link href=""{settings?.HighlightTheme ?? ""}"" rel=""stylesheet"">
                 <script src=""{settings?.HighlightJs ?? ""}""></script>
                 <script src=""{settings?.HighlightJson ?? ""}""></script>
@@ -79,7 +79,7 @@ namespace RedisUI.Pages
                     <div class=""collapse navbar-collapse"" id=""navbarSupportedContent"">
                         <ul class=""navbar-nav me-auto mb-2 mb-lg-0"">
                             <a class=""navbar-brand"" title=""Keys"">
-                                {Icons.KeyLg}
+                                <i class=""bi bi-key-fill""></i>
                                 {model?.DbSize ?? ""}
                             </a>
                             <li class=""nav-item dropdown"">
@@ -93,7 +93,7 @@ namespace RedisUI.Pages
                         </ul>
                     </div>
                     <a class=""navbar-brand"" title=""Statistics"" href=""..{settings?.Path ?? ""}/statistics"">
-                        {Icons.Statistic}
+                        <i class=""bi bi-graph-up""></i>
                     </a>
                 </div>
             </nav>";

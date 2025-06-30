@@ -1,5 +1,4 @@
-﻿using RedisUI.Contents;
-
+﻿
 namespace RedisUI.Pages
 {
     public static class Main
@@ -49,7 +48,7 @@ namespace RedisUI.Pages
                        <button class=""btn btn-outline-secondary"" onclick=""toggleView('tree')"">Tree View</button>
                    </div>
                   <button type=""button"" class=""btn btn-success"" data-bs-toggle=""modal"" data-bs-target=""#insertModal"" title=""Add or Edit Key"">
-                    " + Icons.KeyLg + @" Add/Edit
+                    <i class=""bi bi-key-fill""></i> Add/Edit
                   </button>
                   <div class=""btn-group btn-group-sm"" role=""group"" aria-label=""Page size"">
                     <button type=""button"" class=""btn btn-outline-secondary"" id=""size10"" onclick=""setSize(10)"">10</button>
@@ -238,10 +237,10 @@ namespace RedisUI.Pages
                   <td><span class=""badge ${{key.detail.badge}}"">${{key.detail.type.toUpperCase()}}</span></td>
                   <td>${{key.name}}</td>
                   <td>${{key.detail.length}}</td>
-                  <td>${{key.detail.ttl ? `${{key.detail.ttl}} s` : ""∞""}}</td>
+                  <td>${{key.detail.ttl ? `${{key.detail.ttl}} s` : ""&#9854;""}}</td>
                   <td class=""text-center"">
                     <a onclick=""confirmDelete('${{key.name}}')"" class=""btn btn-sm btn-outline-danger"">
-                      🗑
+                      <i class='bi bi-trash-fill'></i>
                     </a>
                   </td>
                 `;
@@ -304,7 +303,7 @@ namespace RedisUI.Pages
 
                   divToggle.innerHTML = `
                     <a class=""fw-bold text-decoration-none text-dark"">
-                      <span id=""${{iconId}}"" class=""me-1"">📁</span>${{childName}}
+                      <span id='${{iconId}}' class='me-1'><i class='bi bi-chevron-right'></i> <i class='bi bi-folder'></i></span>${{childName}}
                     </a>`;
 
                   const collapseDiv = document.createElement(""div"");
@@ -318,13 +317,11 @@ namespace RedisUI.Pages
 
                   li.appendChild(divToggle);
                   li.appendChild(collapseDiv);
-
-                  // eventos ícono 📁/📂
                   collapseDiv.addEventListener(""shown.bs.collapse"", () => {{
-                    document.getElementById(iconId).textContent = ""📂"";
+                    document.getElementById(iconId).innerHTML = ""<i class='bi bi-chevron-down'></i> <i class='bi bi-folder2-open'></i>"";
                   }});
                   collapseDiv.addEventListener(""hidden.bs.collapse"", () => {{
-                    document.getElementById(iconId).textContent = ""📁"";
+                    document.getElementById(iconId).innerHTML = ""<i class='bi bi-chevron-right'></i> <i class='bi bi-folder'></i>"";
                   }});
                 }}
 
@@ -339,9 +336,9 @@ namespace RedisUI.Pages
 
                   const badge = `<span class='badge ${{key.detail.badge}}'>${{key.detail.type.toUpperCase()}}</span>`;
                   detailSpan.innerHTML = `
-                    🔑 ${{badge}} ${{key.name}}
+                    <i class='bi bi-key-fill'></i> ${{badge}} ${{key.name}}
                     <small class=""text-muted"">
-                      TTL: <span class=""badge bg-info"">${{key.detail.ttl ?? ""∞""}}</span> |
+                      TTL: <span class=""badge"">${{key.detail.ttl ?? ""&#9854;""}}</span> |
                       Size: ${{key.detail.length}} KB
                     </small>`;
 
@@ -349,7 +346,7 @@ namespace RedisUI.Pages
 
                   const deleteBtn = document.createElement(""a"");
                   deleteBtn.className = ""btn btn-sm btn-outline-danger"";
-                  deleteBtn.innerHTML = ""🗑"";
+                  deleteBtn.innerHTML = ""<i class='bi bi-trash-fill'></i>"";
                   deleteBtn.onclick = () => confirmDelete(key.name);
 
                   const divKey = document.createElement(""div"");
@@ -367,15 +364,23 @@ namespace RedisUI.Pages
 
         private static string BuildScriptActions() => $@"
 
+            let isLoading = false;
+
             function showPage(cursor = 0, db = '0') {{
+              if (isLoading) return;
+
+              isLoading = true;
+              showTableLoading();
+              showTreeViewLoading();
+
               const params = new URLSearchParams();
               params.set('cursor', cursor);
               params.set('db', db);
-  
+
               const activeSizeBtn = document.querySelector('.btn-group button.active');
               const size = activeSizeBtn ? activeSizeBtn.textContent : '10';
               params.set('size', size);
-              
+
               const key = document.getElementById('searchInput')?.value || '';
               params.set('key', key);
 
@@ -388,9 +393,42 @@ namespace RedisUI.Pages
                 }})
                 .catch(err => {{
                   console.error(""Error loading keys"", err);
+                }})
+                .finally(() => {{
+                  isLoading = false; // Liberar bloqueo al terminar
                 }});
             }}
-            
+
+            function showTableLoading() {{
+              const tbody = document.getElementById(""tableBody"");
+              if (tbody) {{
+                tbody.innerHTML = `
+                  <tr>
+                    <td colspan=""5"" class=""text-center"">
+                      <div class=""spinner-border text-primary me-2"" role=""status"" style=""width: 1.2rem; height: 1.2rem;"">
+                        <span class=""visually-hidden"">Loading...</span>
+                      </div>
+                      Loading keys...
+                    </td>
+                  </tr>
+                `;
+              }}
+            }}
+
+            function showTreeViewLoading() {{
+              const container = document.getElementById(""treeView"");
+              if (container) {{
+                container.innerHTML = `
+                  <div class=""text-center text-muted p-3"">
+                    <div class=""spinner-border text-success me-2"" role=""status"" style=""width: 1.2rem; height: 1.2rem;"">
+                      <span class=""visually-hidden"">Loading...</span>
+                    </div>
+                    Loading key tree...
+                  </div>
+                `;
+              }}
+            }}
+
             function nextPage(cursor) {{
                 showPage(cursor, new URLSearchParams(window.location.search).get('db') || '0');
             }}

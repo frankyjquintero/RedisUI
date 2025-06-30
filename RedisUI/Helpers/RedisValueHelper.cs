@@ -37,7 +37,7 @@ namespace RedisUI.Helpers
                     var stream = await db.StreamReadAsync(key, "0-0");
                     return stream.Select(entry => new
                     {
-                        id = entry.Id,
+                        id = entry.Id.ToString(),
                         values = entry.Values.ToDictionary(x => (string)x.Name, x => (string)x.Value)
                     }).ToList();
 
