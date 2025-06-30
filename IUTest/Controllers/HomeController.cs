@@ -1,6 +1,4 @@
-using IUTest.Models;
 using Microsoft.AspNetCore.Mvc;
-using System.Diagnostics;
 
 namespace IUTest.Controllers
 {

@@ -33,7 +33,10 @@
                               <option value=""stream"">Stream</option>
                             </select>
                           </div>
-
+                          <div class=""mb-3"">
+                            <label for=""insertTTL"" class=""form-label"">TTL (seconds, optional)</label>
+                            <input type=""number"" min=""0"" class=""form-control"" id=""insertTTL"" placeholder=""Leave empty for no expiration"">
+                          </div>
                           <div class=""mb-3"">
                             <label for=""insertValue"" class=""form-label"">Value (JSON format)</label>
                             <textarea class=""form-control"" id=""insertValue"" rows=""5"" required></textarea>

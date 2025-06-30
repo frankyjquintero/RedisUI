@@ -7,6 +7,7 @@ namespace RedisUI.Pages
         {
             var html = $@"
                 {InsertModal.Build()}
+                {DeleteModal.Build()}
                 {BuildHeader()}
                 <div class=""row justify-content-start"">
                     <div class='col-8' style='max-height: 750px; overflow-y: auto;'>
@@ -48,16 +49,19 @@ namespace RedisUI.Pages
                        <button class=""btn btn-outline-secondary"" onclick=""toggleView('tree')"">Tree View</button>
                    </div>
                   <button type=""button"" class=""btn btn-success"" data-bs-toggle=""modal"" data-bs-target=""#insertModal"" title=""Add or Edit Key"">
-                    <i class=""bi bi-key-fill""></i> Add/Edit
+                    <i class=""bi bi-key-fill""></i> Add
                   </button>
+                  <button type=""button"" class=""btn btn-danger"" data-bs-toggle=""modal"" data-bs-target=""#deletePatternModal"" title=""Delete Keys by Pattern"">
+                    <i class=""bi bi-trash""></i> Delete
+                  </button>
+
                   <div class=""btn-group btn-group-sm"" role=""group"" aria-label=""Page size"">
-                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size10"" onclick=""setSize(10)"">10</button>
-                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size20"" onclick=""setSize(20)"">20</button>
-                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size50"" onclick=""setSize(50)"">50</button>
-                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size100"" onclick=""setSize(100)"">100</button>
+                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size1"" onclick=""setSize(1)"">1</button>
                     <button type=""button"" class=""btn btn-outline-secondary"" id=""size500"" onclick=""setSize(500)"">500</button>
                     <button type=""button"" class=""btn btn-outline-secondary"" id=""size1000"" onclick=""setSize(1000)"">1000</button>
+                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size3000"" onclick=""setSize(3000)"">3000</button>
                     <button type=""button"" class=""btn btn-outline-secondary"" id=""size5000"" onclick=""setSize(5000)"">5000</button>
+                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size7000"" onclick=""setSize(7000)"">7000</button>
                     <button type=""button"" class=""btn btn-outline-secondary"" id=""size10000"" onclick=""setSize(10000)"">10000</button>
                   </div>
                 </div>
@@ -169,7 +173,7 @@ namespace RedisUI.Pages
                 const params = new URLSearchParams(window.location.search);
                 const db = params.get('db') || '0';
                 document.getElementById('nav' + db)?.classList.add('active');
-                document.getElementById('size' + (params.get('size') || '10'))?.classList.add('active');
+                document.getElementById('size' + (params.get('size') || '500'))?.classList.add('active');
             }}
 
             function setupNextButton(cursor) {{
@@ -338,7 +342,7 @@ namespace RedisUI.Pages
                   detailSpan.innerHTML = `
                     <i class='bi bi-key-fill'></i> ${{badge}} ${{key.name}}
                     <small class=""text-muted"">
-                      TTL: <span class=""badge"">${{key.detail.ttl ?? ""&#9854;""}}</span> |
+                      TTL: <span class=""badge bg-secondary"">${{key.detail.ttl ?? ""&#9854;""}}</span> |
                       Size: ${{key.detail.length}} KB
                     </small>`;
 
@@ -378,7 +382,7 @@ namespace RedisUI.Pages
               params.set('db', db);
 
               const activeSizeBtn = document.querySelector('.btn-group button.active');
-              const size = activeSizeBtn ? activeSizeBtn.textContent : '10';
+              const size = activeSizeBtn ? activeSizeBtn.textContent : '500';
               params.set('size', size);
 
               const key = document.getElementById('searchInput')?.value || '';
@@ -482,6 +486,8 @@ namespace RedisUI.Pages
               const key = document.getElementById(""insertKey"").value.trim();
               const type = document.getElementById(""insertType"").value.trim().toLowerCase();
               const rawValue = document.getElementById(""insertValue"").value.trim();
+              const ttlInput = document.getElementById(""insertTTL"");
+              const ttl = ttlInput && ttlInput.value ? parseInt(ttlInput.value) : null;        
 
               if (!key || !type || !rawValue) {{
                 alert(""Please fill in all fields."");
@@ -499,7 +505,8 @@ namespace RedisUI.Pages
               const payload = {{
                 name: key,
                 keyType: type,
-                value: parsedValue
+                value: parsedValue,
+                ttl: ttl
               }};
 
               fetch(`${{API_PATH_BASE_URL}}/keys`, {{

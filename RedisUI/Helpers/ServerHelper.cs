@@ -3,7 +3,6 @@ using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -20,7 +19,7 @@ namespace RedisUI.Helpers
             var keyspaces = keyspaceTask.Result
                 .ToString()
                 .Replace("# Keyspace", "")
-                .Split(new string[] { "\r\n" }, StringSplitOptions.None)
+                .Split(new[] { "\r\n" }, StringSplitOptions.None)
                 .Where(item => !string.IsNullOrEmpty(item))
                 .Select(KeyspaceModel.Instance)
                 .ToList();
@@ -28,41 +27,31 @@ namespace RedisUI.Helpers
             return (dbSizeTask.Result, keyspaces);
         }
 
-        public static async Task<(List<KeyModel> keys, long nextCursor)> ScanKeys(IDatabase redisDb, RequestQueryParamsModel queryParams)
+        public static async Task<(IEnumerable<string> keys, long nextCursor)> ScanKeys(IDatabase redisDb, RequestQueryParamsModel queryParams)
         {
-            const int MAX_SCAN_LIMIT = 10_000;
+            const int MAX_SCAN_LIMIT = 100_000;
             var allMatches = new List<string>();
             long scanCursor = queryParams.Cursor;
-            long nextCursor = 0;
+            int pageSize = queryParams.PageSize > MAX_SCAN_LIMIT ? MAX_SCAN_LIMIT : queryParams.PageSize;
 
-            if (string.IsNullOrEmpty(queryParams.SearchKey))
+            do
             {
-                var result = await redisDb.ExecuteAsync("SCAN", scanCursor.ToString(), "COUNT", queryParams.PageSize.ToString());
+                string[] args = (string.IsNullOrEmpty(queryParams.SearchKey))
+                    ? new[] { scanCursor.ToString(), "COUNT", pageSize.ToString() }
+                    : new[] { scanCursor.ToString(), "MATCH", queryParams.SearchKey, "COUNT", pageSize.ToString() };
+
+                var result = await redisDb.ExecuteAsync("SCAN", args);
                 var innerResult = (RedisResult[])result;
                 scanCursor = long.Parse((string)innerResult[0]);
-                allMatches = ((string[])innerResult[1]).ToList();
-                nextCursor = scanCursor;
-            }
-            else
-            {
-                do
-                {
-                    var result = await redisDb.ExecuteAsync("SCAN", scanCursor.ToString(), "MATCH", queryParams.SearchKey, "COUNT", 1_000);
-                    var innerResult = (RedisResult[])result;
-                    scanCursor = long.Parse((string)innerResult[0]);
-                    var partial = (string[])innerResult[1];
-                    allMatches.AddRange(partial);
+                allMatches.AddRange(((RedisResult[])result[1]).Select(x => (string)x));
 
-                    if (allMatches.Count >= queryParams.PageSize || scanCursor == 0 || allMatches.Count >= MAX_SCAN_LIMIT)
-                        break;
-                } while (true);
+                if (allMatches.Count >= pageSize || scanCursor == 0 || allMatches.Count >= MAX_SCAN_LIMIT)
+                    break;
+            } while (true);
 
-                nextCursor = scanCursor;
-            }
-
-            var pagedKeys = allMatches.Take(queryParams.PageSize).ToList();
-            var keys = pagedKeys.Select(x => new KeyModel { Name = x }).ToList();
-            return (keys, nextCursor);
+            long nextCursor = scanCursor;
+            var pagedKeys = allMatches.Take(pageSize);
+            return (pagedKeys, nextCursor);
         }
 
         public static async Task ResolveKeyDetails(IDatabase redisDb, List<KeyModel> keys)
@@ -82,6 +71,44 @@ namespace RedisUI.Helpers
                     semaphore.Release();
                 }
             });
+        }
+
+        public static async Task<int> DeleteKeys(IDatabase redisDb, IEnumerable<string> keysToDelete)
+        {
+            const int BatchSize = 100;
+            int MaxParallelism = Math.Max(1, Environment.ProcessorCount);
+            var deletedCount = 0;
+            var deleteLock = new object();
+
+            var chunks = keysToDelete.Chunk(BatchSize);
+
+            await Parallel.ForEachAsync(chunks, new ParallelOptions { MaxDegreeOfParallelism = MaxParallelism }, async (chunk, _) =>
+            {
+                foreach (var keyName in chunk)
+                {
+                    try
+                    {
+                        if (await redisDb.KeyDeleteAsync(keyName))
+                        {
+                            lock (deleteLock)
+                            {
+                                deletedCount++;
+                            }
+                        }
+                    }
+                    catch (RedisConnectionException connEx)
+                    {
+                        Console.WriteLine("Redis connection error: " + connEx.Message);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error deleting key {keyName}: {ex.Message}");
+                    }
+                }
+            });
+
+            return deletedCount;
+            
         }
     }
 }

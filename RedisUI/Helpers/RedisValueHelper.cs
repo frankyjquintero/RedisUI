@@ -88,11 +88,14 @@ namespace RedisUI.Helpers
             var key = model.Name;
             var value = model.Value;
             var type = Parse(model.KeyType);
+            var expiry = model.TTL.HasValue && model.TTL.Value > 0
+                ? TimeSpan.FromSeconds(model.TTL.Value)
+                : (TimeSpan?)null;
 
             switch (type)
             {
                 case RedisType.String:
-                    await db.StringSetAsync(key, value?.ToString());
+                    await db.StringSetAsync(key, value?.ToString(), expiry);
                     break;
 
                 case RedisType.List:
@@ -100,6 +103,8 @@ namespace RedisUI.Helpers
                     var list = JsonSerializer.Deserialize<List<string>>(value.ToString() ?? "[]");
                     foreach (var item in list)
                         await db.ListRightPushAsync(key, item);
+                    if (expiry.HasValue)
+                        await db.KeyExpireAsync(key, expiry);
                     break;
 
                 case RedisType.Set:
@@ -107,6 +112,8 @@ namespace RedisUI.Helpers
                     var set = JsonSerializer.Deserialize<List<string>>(value.ToString() ?? "[]");
                     foreach (var item in set)
                         await db.SetAddAsync(key, item);
+                    if (expiry.HasValue)
+                        await db.KeyExpireAsync(key, expiry);
                     break;
 
                 case RedisType.SortedSet:
@@ -114,6 +121,8 @@ namespace RedisUI.Helpers
                     var sorted = JsonSerializer.Deserialize<List<SortedItem>>(value.ToString() ?? "[]");
                     foreach (var item in sorted)
                         await db.SortedSetAddAsync(key, item.Value, item.Score);
+                    if (expiry.HasValue)
+                        await db.KeyExpireAsync(key, expiry);
                     break;
 
                 case RedisType.Hash:
@@ -121,6 +130,8 @@ namespace RedisUI.Helpers
                     var dict = JsonSerializer.Deserialize<Dictionary<string, string>>(value.ToString() ?? "{}");
                     foreach (var kv in dict)
                         await db.HashSetAsync(key, kv.Key, kv.Value);
+                    if (expiry.HasValue)
+                        await db.KeyExpireAsync(key, expiry);
                     break;
 
                 case RedisType.Stream:
@@ -138,6 +149,8 @@ namespace RedisUI.Helpers
                                 await db.StreamAddAsync(key, nameValueEntries);
                         }
                     }
+                    if (expiry.HasValue)
+                        await db.KeyExpireAsync(key, expiry);
                     break;
             }
         }

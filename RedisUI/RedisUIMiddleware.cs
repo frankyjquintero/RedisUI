@@ -9,7 +9,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace RedisUI
@@ -103,6 +102,11 @@ namespace RedisUI
                         var key = Uri.UnescapeDataString(path[(($"{_settings.Path}/keys/").Length)..]);
                         await HandleDeleteKey(context, redisDb, key);
                     }
+                ),
+                (
+                    p => p == $"{_settings.Path}/delete-by-pattern",
+                    HttpMethods.Post,
+                    () => HandleDeleteByPattern(context, redisDb)
                 )
             };
 
@@ -115,7 +119,6 @@ namespace RedisUI
                 }
             }
 
-            // Ruta no válida
             context.Response.StatusCode = StatusCodes.Status404NotFound;
         }
 
@@ -123,12 +126,13 @@ namespace RedisUI
         {
             var query = new RequestQueryParamsModel(context.Request);
             var (skeys, nextCursor) = await ServerHelper.ScanKeys(redisDb, query);
-            await ServerHelper.ResolveKeyDetails(redisDb, skeys);
+            var keys = skeys.Select(x => new KeyModel { Name = x }).ToList();
+            await ServerHelper.ResolveKeyDetails(redisDb, keys);
 
             context.Response.ContentType = "application/json";
             await context.Response.WriteAsJsonAsync(new
             {
-                keys = skeys,
+                keys = keys,
                 cursor = nextCursor
             });
         }
@@ -173,6 +177,31 @@ namespace RedisUI
         {
             await redisDb.KeyDeleteAsync(key);
             context.Response.StatusCode = StatusCodes.Status204NoContent;
+        }
+
+        private static async Task HandleDeleteByPattern(HttpContext context, IDatabase redisDb)
+        {
+            var query = new RequestQueryParamsModel(context.Request);
+
+            if (string.IsNullOrWhiteSpace(query.SearchKey))
+            {
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                await context.Response.WriteAsync("Missing required pattern (SearchKey).");
+                return;
+            }
+
+            var (keysToDelete, _) = await ServerHelper.ScanKeys(redisDb, query);
+
+            if (!keysToDelete.Any())
+            {
+                context.Response.StatusCode = StatusCodes.Status204NoContent;
+                return;
+            }
+
+            var deletedCount = await ServerHelper.DeleteKeys(redisDb, keysToDelete);
+
+            context.Response.StatusCode = StatusCodes.Status200OK;
+            await context.Response.WriteAsync($"{deletedCount} keys deleted.");
         }
 
         private bool IsPathMatch(string path) =>
