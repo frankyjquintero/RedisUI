@@ -183,6 +183,15 @@ namespace RedisUI
         {
             var query = new RequestQueryParamsModel(context.Request);
 
+            // Flush mode
+            if (context.Request.Query.TryGetValue("flush", out var flushValue) && flushValue == "true")
+            {
+                await redisDb.ExecuteAsync("FLUSHDB");
+                context.Response.StatusCode = StatusCodes.Status200OK;
+                await context.Response.WriteAsync("Database flushed.");
+                return;
+            }
+
             if (string.IsNullOrWhiteSpace(query.SearchKey))
             {
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
