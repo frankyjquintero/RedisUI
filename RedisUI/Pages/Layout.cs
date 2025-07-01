@@ -1,7 +1,7 @@
 ﻿using RedisUI.Models;
 using System;
-using System.Text;
 using System.Collections.Generic;
+using System.Text;
 
 namespace RedisUI.Pages
 {
@@ -19,12 +19,14 @@ namespace RedisUI.Pages
                 <html lang=""en"">
                 {head}
                 <body>
+                  <div id=""render-ui"">
                     {nav}
                     <div class=""container-fluid"">
                         <br/>
                         {section}
                     </div>
                     {footer}
+                  </div>
                 </body>
                 </html>
             ";
@@ -59,13 +61,6 @@ namespace RedisUI.Pages
 
                 <style>
                     .dropdown-menu {{ z-index: 1021; }}
-                    .badge-purple  {{background-color: #6f42c1; color: #fff; }}
-                    .badge-blue    {{background-color: #007bff; color: #fff; }}
-                    .badge-green   {{background-color: #28a745; color: #fff; }}
-                    .badge-orange  {{background-color: #fd7e14; color: #fff; }}
-                    .badge-magenta {{background-color: #e83e8c; color: #fff; }}
-                    .badge-olive   {{background-color: #6c757d; color: #fff; }}
-                    .badge-gray    {{background-color: #adb5bd; color: #fff; }}
                 </style>
             </head>";
         }
@@ -104,8 +99,21 @@ namespace RedisUI.Pages
                 function logout() {{
                     // Auth Basic
                     if (confirm('Are you sure you want to log out?')) {{
-                        window.location.href = ""..{settings?.Path ?? ""}/logout"";
+                         document.getElementById('render-ui').innerHTML = `
+                            <div class=""container text-center mt-5"">
+                            <h2 class=""text-danger"">Session expired or logged out</h2>
+                            <p>Please <a href=""${{window.location.pathname}}"">reload</a> to log in again.</p>
+                            </div>
+                        `;
+                        fetch(""..{settings?.Path ?? ""}/logout"")
+                        .then(data => {{
+                            if (data.status === 401) {{
+                                window.location.href = ""..{settings?.Path ?? ""}"";
+                            }}
+                        }});
                     }}
+                    
+
                 }}
             </script>";
         }
