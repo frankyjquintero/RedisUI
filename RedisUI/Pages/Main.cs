@@ -149,12 +149,51 @@ namespace RedisUI.Pages
         private static string BuildScript()
         {
             return $@"
+                {BuildGlobalVariablesScript()}
                 {BuildDOMContentLoaded()}
+                {BuildNavScript()}
                 {BuildJsHeader()}
-                {BuildJsEditor()}
+                {BuildToolbarScript()}                               
                 {BuildJsTable()}
                 {BuildTreeView()}
+                {BuildJsEditor()}
                 {BuildScriptActions()}
+            ";
+        }
+
+        private static string BuildToolbarScript()
+        {
+            return $@"
+                function toggleView(view) {{
+                    toggleViewActive = view;
+                    const isList = view === 'list';
+                    const isTree = view === 'tree';
+
+                    document.getElementById('listView').classList.toggle('d-none', !isList);
+                    document.getElementById('treeView').classList.toggle('d-none', !isTree);
+                    document.getElementById('btnlistView').classList.toggle('active', isList);
+                    document.getElementById('btntreeView').classList.toggle('active', isTree);
+
+                    if (isList) {{
+                        renderTableBody(currentDataKeys);
+                    }} else if (isTree) {{
+                        renderTreeView(currentDataKeys);
+                    }}
+
+                    setupNextButton(currentCursor);
+                }}
+
+                {BuildBulkActionsScript()} 
+            ";
+        }
+
+        private static string BuildGlobalVariablesScript()
+        {
+            return $@"
+                let isLoading = false;
+                let currentDataKeys = [];
+                let currentCursor = 0;
+                let toggleViewActive = 'tree';
             ";
         }
 
@@ -167,26 +206,6 @@ namespace RedisUI.Pages
         ";
 
         private static string BuildJsHeader() => $@"
-            function toggleView(view) {{
-                toggleViewActive = view;
-                const isList = view === 'list';
-                const isTree = view === 'tree';
-
-                document.getElementById('listView').classList.toggle('d-none', !isList);
-                document.getElementById('treeView').classList.toggle('d-none', !isTree);
-                document.getElementById('btnlistView').classList.toggle('active', isList);
-                document.getElementById('btntreeView').classList.toggle('active', isTree);
-
-                if (isList) {{
-                    renderTableBody(currentDataKeys);
-                }} else if (isTree) {{
-                    renderTreeView(currentDataKeys);
-                }}
-
-                setupNextButton(currentCursor);
-            }}
-
-
             function highlightActiveDbAndSize() {{
                 const params = new URLSearchParams(window.location.search);
                 const db = params.get('db') || '0';
@@ -198,6 +217,28 @@ namespace RedisUI.Pages
                 const btnNext = document.getElementById('btnNext');
                 btnNext.onclick = () => nextPage(cursor);
                 btnNext.hidden = (0 === cursor);
+            }}
+
+            function nextPage(cursor) {{
+                showPage(cursor, new URLSearchParams(window.location.search).get('db') || '0');
+            }}
+
+            function setSize(size) {{
+                document.querySelectorAll('.btn-group button').forEach(btn => {{
+                    btn.classList.remove('active');
+                }});
+
+                const activeBtn = document.getElementById('size' + size);
+                if (activeBtn) {{
+                    activeBtn.classList.add('active');
+                }}
+                const url = new URL(window.location);
+                const params = url.searchParams;
+                if (!params.has('db')) {{
+                    params.set('db', '0');
+                }}
+
+                showPage(0, params.get('db'));
             }}
         ";
 
@@ -430,12 +471,81 @@ namespace RedisUI.Pages
             }}
         ";
 
-        private static string BuildScriptActions() => $@"
+        private static string BuildNavScript()
+        {
+            return $@"
+                function setdb(db){{
+                    var currentPath = window.location.href.replace(window.location.search, '');
+                    window.location = currentPath.replace('#', '') + '?db=' + db;
+                }}
+            ";
+        }
 
-            let isLoading = false;
-            let currentDataKeys = [];
-            let currentCursor = 0;
-            let toggleViewActive = 'tree';
+        private static string BuildBulkActionsScript()
+        {
+            return $@"
+                document.addEventListener(""change"", function(e) {{
+                  if (e.target.id === ""selectAllKeys"") {{
+                    const all = document.querySelectorAll("".keyCheckbox"");
+                    all.forEach(cb => cb.checked = e.target.checked);
+                  }}
+                }});
+
+                function getSelectedKeys() {{
+                  return Array.from(document.querySelectorAll("".keyCheckbox:checked""))
+                              .map(cb => cb.value);
+                }}
+
+                function bulkDelete() {{
+                  const keys = getSelectedKeys();
+                  if (!keys.length) return alert(""No keys selected."");
+                  if (!confirm(`Delete ${{keys.length}} keys?`)) return;
+
+                  fetch(`${{API_PATH_BASE_URL}}/bulk-operation`, {{
+                    method: 'POST',
+                    headers: {{ ""Content-Type"": ""application/json"" }},
+                    body: JSON.stringify({{ operation: ""Delete"", keys: keys }})
+                  }}).then(r => r.text()).then(msg => {{
+                    alert(msg);
+                    showPage(0);
+                  }});
+                }}
+
+                function bulkExpire() {{
+                  const keys = getSelectedKeys();
+                  if (!keys.length) return alert(""No keys selected."");
+                  const ttl = prompt(""TTL en segundos:"");
+                  if (!ttl || isNaN(ttl)) return alert(""TTL inválido."");
+
+                  fetch(`${{API_PATH_BASE_URL}}/bulk-operation`, {{
+                    method: 'POST',
+                    headers: {{ ""Content-Type"": ""application/json"" }},
+                    body: JSON.stringify({{ operation: ""Expire"", keys: keys, args: parseInt(ttl) }})
+                  }}).then(r => r.text()).then(msg => {{
+                    alert(msg);
+                    showPage(0);
+                  }});
+                }}
+
+                function bulkRename() {{
+                  const keys = getSelectedKeys();
+                  if (!keys.length) return alert(""No keys selected."");
+                  const prefix = prompt(""Nuevo prefijo:"");
+                  if (!prefix) return;
+
+                  fetch(`${{API_PATH_BASE_URL}}/bulk-operation`, {{
+                    method: 'POST',
+                    headers: {{ ""Content-Type"": ""application/json"" }},
+                    body: JSON.stringify({{ operation: ""Rename"", keys: keys, args: {{ prefix: prefix }} }})
+                  }}).then(r => r.text()).then(msg => {{
+                    alert(msg);
+                    showPage(0);
+                  }});
+                }}
+            ";
+        }
+
+        private static string BuildScriptActions() => $@"
 
             function showPage(cursor = 0, db = '0') {{
               if (isLoading) return;
@@ -470,33 +580,6 @@ namespace RedisUI.Pages
                 }});
             }}
 
-            function nextPage(cursor) {{
-                showPage(cursor, new URLSearchParams(window.location.search).get('db') || '0');
-            }}
-
-            function setdb(db){{
-                var currentPath = window.location.href.replace(window.location.search, '');
-                window.location = currentPath.replace('#', '') + '?db=' + db;
-            }}
-
-            function setSize(size) {{
-                document.querySelectorAll('.btn-group button').forEach(btn => {{
-                    btn.classList.remove('active');
-                }});
-
-                const activeBtn = document.getElementById('size' + size);
-                if (activeBtn) {{
-                    activeBtn.classList.add('active');
-                }}
-                const url = new URL(window.location);
-                const params = url.searchParams;
-                if (!params.has('db')) {{
-                    params.set('db', '0');
-                }}
-
-                showPage(0, params.get('db'));
-            }}
-
             function confirmDelete(delKey) {{
                 if (!confirm(`Are you sure to delete key '${{delKey}}'?`)) return;
 
@@ -517,66 +600,6 @@ namespace RedisUI.Pages
                     alert(""An error occurred while deleting the key."");
                 }});
             }}
-
-            document.addEventListener(""change"", function(e) {{
-              if (e.target.id === ""selectAllKeys"") {{
-                const all = document.querySelectorAll("".keyCheckbox"");
-                all.forEach(cb => cb.checked = e.target.checked);
-              }}
-            }});
-
-            function getSelectedKeys() {{
-              return Array.from(document.querySelectorAll("".keyCheckbox:checked""))
-                          .map(cb => cb.value);
-            }}
-
-            function bulkDelete() {{
-              const keys = getSelectedKeys();
-              if (!keys.length) return alert(""No keys selected."");
-              if (!confirm(`Delete ${{keys.length}} keys?`)) return;
-
-              fetch(`${{API_PATH_BASE_URL}}/bulk-operation`, {{
-                method: 'POST',
-                headers: {{ ""Content-Type"": ""application/json"" }},
-                body: JSON.stringify({{ operation: ""Delete"", keys: keys }})
-              }}).then(r => r.text()).then(msg => {{
-                alert(msg);
-                showPage(0);
-              }});
-            }}
-
-            function bulkExpire() {{
-              const keys = getSelectedKeys();
-              if (!keys.length) return alert(""No keys selected."");
-              const ttl = prompt(""TTL en segundos:"");
-              if (!ttl || isNaN(ttl)) return alert(""TTL inválido."");
-
-              fetch(`${{API_PATH_BASE_URL}}/bulk-operation`, {{
-                method: 'POST',
-                headers: {{ ""Content-Type"": ""application/json"" }},
-                body: JSON.stringify({{ operation: ""Expire"", keys: keys, args: parseInt(ttl) }})
-              }}).then(r => r.text()).then(msg => {{
-                alert(msg);
-                showPage(0);
-              }});
-            }}
-
-            function bulkRename() {{
-              const keys = getSelectedKeys();
-              if (!keys.length) return alert(""No keys selected."");
-              const prefix = prompt(""Nuevo prefijo:"");
-              if (!prefix) return;
-
-              fetch(`${{API_PATH_BASE_URL}}/bulk-operation`, {{
-                method: 'POST',
-                headers: {{ ""Content-Type"": ""application/json"" }},
-                body: JSON.stringify({{ operation: ""Rename"", keys: keys, args: {{ prefix: prefix }} }})
-              }}).then(r => r.text()).then(msg => {{
-                alert(msg);
-                showPage(0);
-              }});
-            }}
-
         ";
 
         #endregion JS
