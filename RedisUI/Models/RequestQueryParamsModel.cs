@@ -12,6 +12,8 @@ namespace RedisUI.Models
         public long Cursor { get; } // antes era Page
         public int PageSize { get; }
         public string SearchKey { get; }
+        public string? KeyType { get; }
+
 
         public RequestQueryParamsModel(HttpRequest request)
         {
@@ -21,6 +23,7 @@ namespace RedisUI.Models
             Cursor = query.TryGetValue("cursor", out var cursorVal) && long.TryParse(cursorVal, out var cursorParsed) ? cursorParsed : 0;
             PageSize = query.TryGetValue("size", out var sizeVal) && int.TryParse(sizeVal, out var sizeParsed) ? sizeParsed : 10;
             SearchKey = query.TryGetValue("key", out var keyVal) ? keyVal.ToString() : string.Empty;
+            KeyType = query.TryGetValue("type", out var typeVal) ? typeVal.ToString() : string.Empty;
         }
 
         public bool Equals(RequestQueryParamsModel other)

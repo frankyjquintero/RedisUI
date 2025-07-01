@@ -148,6 +148,13 @@ namespace RedisUI
             var keys = skeys.Select(x => new KeyModel { Name = x }).ToList();
             await ServerHelper.ResolveKeyDetails(redisDb, keys);
 
+            if (!string.IsNullOrWhiteSpace(query.KeyType))
+            {
+                keys = keys
+                    .Where(k => k.KeyType.ToString().Equals(query.KeyType, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+
             context.Response.ContentType = "application/json";
             await context.Response.WriteAsJsonAsync(new
             {

@@ -1,5 +1,4 @@
-﻿
-namespace RedisUI.Pages
+﻿namespace RedisUI.Pages
 {
     public static class Main
     {
@@ -56,93 +55,155 @@ namespace RedisUI.Pages
         ";
 
         private static string BuildToolbar2() => $@"
-            <div class=""card-header bg-light border-bottom d-flex align-items-center justify-content-between flex-wrap"">
-                <div class=""btn-group btn-group-sm"" role=""group"">
-                    <button class=""btn btn-outline-primary"" id=""btnlistView"" onclick=""toggleView('list')""><i class=""bi bi-list-ul""></i> List View</button>
-                    <button class=""btn btn-outline-secondary"" id=""btntreeView"" onclick=""toggleView('tree')""><i class=""bi bi-diagram-3""></i> Tree View</button>
+            <div class=""card-header bg-light border-bottom d-flex align-items-center justify-content-between flex-wrap gap-2"">
+
+                <!-- View Mode Buttons -->
+                <div class=""btn-group btn-group-sm"" role=""group"" aria-label=""View Mode"">
+                    <button class=""btn btn-outline-primary"" id=""btnlistView"" onclick=""toggleView('list')"">
+                        <i class=""bi bi-list-ul me-1""></i> List View
+                    </button>
+                    <button class=""btn btn-outline-secondary"" id=""btntreeView"" onclick=""toggleView('tree')"">
+                        <i class=""bi bi-diagram-3 me-1""></i> Tree View
+                    </button>
                 </div>
+
+                <!-- Bulk Action Buttons -->
                 <div class=""btn-group btn-group-sm"" role=""group"" aria-label=""Page size"">
-                    <button class=""btn btn-outline-danger btn-sm"" onclick=""bulkDelete()"">Bulk Delete</button>
-                    <button class=""btn btn-outline-warning btn-sm"" onclick=""bulkExpire()"">Bulk Expire</button>
-                    <button class=""btn btn-outline-secondary btn-sm"" onclick=""bulkRename()"">Bulk Rename</button>
+                    <button class=""btn btn-outline-danger"" onclick=""bulkDelete()"" title=""Delete selected keys"">
+                        <i class=""bi bi-trash-fill me-1""></i> Bulk Delete
+                    </button>
+                    <button class=""btn btn-outline-warning"" onclick=""bulkExpire()"" title=""Expire selected keys"">
+                        <i class=""bi bi-clock me-1""></i> Bulk Expire
+                    </button>
+                    <button class=""btn btn-outline-secondary"" onclick=""bulkRename()"" title=""Rename selected keys"">
+                        <i class=""bi bi-pencil-square me-1""></i> Bulk Rename
+                    </button>
                 </div>
-            </div>
-        ";
+
+            </div>";
+
 
 
         #region HTML
         private static string BuildHeader() => $@"
-            <div class=""container-fluid"">
-              <div class=""row align-items-center mb-3"">
-                <div class=""col-sm-12 col-md-6"">
-                  <div class=""input-group"">
-                    <input type=""text"" id=""searchInput"" class=""form-control"" placeholder=""key or pattern..."" onkeydown=""if(event.key === 'Enter') showPage(0);"">
-                    <button class=""btn btn-outline-success btn-sm"" onclick=""showPage(0)"">Search <i class=""bi bi-search""></i></button>
-                    <button id=""btnNext"" class=""btn btn-primary"" onclick=""nextPage(0)"">Next <i class=""bi bi-chevron-right""></i></button>
-                  </div>
-                </div>
-                <div class=""col-sm-12 col-md-6"">
-                  <div class=""d-flex justify-content-end align-items-center gap-2 flex-nowrap""> 
-                    <div class=""btn-group btn-group-sm"" role=""group"" aria-label=""Page size"">
-                      <button type=""button"" class=""btn btn-success"" data-bs-toggle=""modal"" data-bs-target=""#insertModal"" title=""Add or Edit Key"">
-                        <i class=""bi bi-key-fill""></i> Add
-                      </button>
-                      <button type=""button"" class=""btn btn-danger"" data-bs-toggle=""modal"" data-bs-target=""#deletePatternModal"" title=""Delete Keys by Pattern"">
-                        <i class=""bi bi-trash""></i> Delete
-                      </button>
+          <div class=""container-fluid mb-3"">
+            <div class=""row align-items-center"">
+
+                <!-- Izquierda: Filtro y Búsqueda alineados horizontalmente -->
+                <div class=""col-md-6"">
+                    <div class=""d-flex align-items-center gap-2 w-100"">
+    
+                    <!-- Filtro por tipo -->
+                    <div class=""input-group input-group-sm"" style=""width: 180px;"">
+                        <span class=""input-group-text""><i class=""bi bi-funnel""></i></span>
+                        <select id=""keyTypeFilter"" class=""form-select form-select-sm"" onchange=""showPage(0)"">
+                        <option value="""">All</option>
+                        <option value=""string"">String</option>
+                        <option value=""list"">List</option>
+                        <option value=""set"">Set</option>
+                        <option value=""sortedset"">Sorted Set</option>
+                        <option value=""hash"">Hash</option>
+                        <option value=""stream"">Stream</option>
+                        </select>
                     </div>
-                  </div>
+
+                    <!-- Búsqueda -->
+                    <div class=""input-group input-group-sm flex-grow-1"">
+                        <input type=""text"" id=""searchInput"" class=""form-control"" placeholder=""Key or pattern..."" 
+                                onkeydown=""if(event.key === 'Enter') showPage(0);"">
+                        <button class=""btn btn-outline-success"" onclick=""showPage(0)"" title=""Search"">
+                        <i class=""bi bi-search""></i>
+                        </button>
+                        <button id=""btnNext"" class=""btn btn-primary"" onclick=""nextPage(0)"" title=""Next Page"">
+                        <i class=""bi bi-chevron-right""></i>
+                        </button>
+                    </div>
+
+                    </div>
                 </div>
-              </div>
-            </div>";
+
+                <!-- Derecha: Acciones -->
+                <div class=""col-md-6 d-flex justify-content-end align-items-center gap-2"">
+                <div class=""btn-group btn-group-sm"" role=""group"" aria-label=""Key actions"">
+                    <button type=""button"" class=""btn btn-outline-success"" data-bs-toggle=""modal"" data-bs-target=""#insertModal"" title=""Add or Edit Key"">
+                    <i class=""bi bi-plus-circle""></i> Add
+                    </button>
+                    <button type=""button"" class=""btn btn-outline-danger"" data-bs-toggle=""modal"" data-bs-target=""#deletePatternModal"" title=""Delete by Pattern"">
+                    <i class=""bi bi-trash""></i> Delete
+                    </button>
+                </div>
+                </div>
+
+            </div>
+          </div>";
+
+
 
 
         private static string BuildBaseTable() => $@"
-        <div class=""table-responsive"">
-            <div style=""max-height: 600px; overflow-y: auto;"">
-                <table class=""table table-bordered table-hover align-middle mb-0 text-nowrap"" id=""redisTable"">
-                    <thead class=""table-primary text-center sticky-top"">
-                    <tr>
-                        <th style=""width: 40px;""><input type=""checkbox"" id=""selectAllKeys"" /></th>
-                        <th style=""width: 120px;"">Type</th>
-                        <th>Key</th>
-                        <th style=""width: 100px;"">Size (KB)</th>
-                        <th style=""width: 90px;"">TTL</th>
-                        <th style=""width: 110px;"">Action</th>
-                    </tr>
-                    </thead>
-                    <tbody id=""tableBody"">
-                        <!-- rows will be injected here -->
-                    </tbody>
-                </table>
-            </div>
-        </div>";
-
-
-
-        private static string BuildValuePanel() => @"
-              <div class=""card shadow-sm h-100"">
-                <div class=""card-header bg-info text-white d-flex justify-content-between align-items-center"">
-                  <span>Value</span>
-                  <select id=""jsonModeSelector"" class=""form-select form-select-sm w-auto"" onchange=""onViewerChange(this.value)"">                    
-                    <option value=""view"">View</option>
-                    <option value=""tree"">Tree</option>
-                    <option value=""code"">Code</option>
-                    <option value=""form"">Form</option>
-                    <option value=""text"">Text</option>
-                    <option value=""highlight"">Highlight.js</option>
-                  </select>
+            <div class=""table-responsive"">
+                <div class=""card border-0 shadow-sm"">
+                    <div class=""table-wrapper custom-scroll"" style=""max-height: 600px; overflow-y: auto;"">
+                        <table class=""table table-bordered table-hover align-middle mb-0 text-nowrap"">
+                            <thead class=""table-primary text-center sticky-top"">
+                                <tr>
+                                    <th style=""width: 40px;"">
+                                        <input type=""checkbox"" id=""selectAllKeys"" />
+                                    </th>
+                                    <th style=""width: 120px;"">Type</th>
+                                    <th>Key</th>
+                                    <th style=""width: 100px;"">Size (KB)</th>
+                                    <th style=""width: 90px;"">TTL</th>
+                                    <th style=""width: 110px;"">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id=""tableBody"">
+                                <!-- rows injected here -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <div class=""overflow-auto"" style=""max-height: 650px; min-height: 550px;"">
-                  <!-- Contenedor para highlight.js -->
+            </div>";
+
+
+        private static string BuildValuePanel() => $@"
+            <div class=""card shadow-sm h-100 border-0"">
+              <div class=""card-header bg-danger text-white d-flex justify-content-between align-items-center"">
+                <h6 class=""mb-0 d-flex align-items-center gap-2"">
+                  <i class=""bi bi-box-seam""></i>
+                  <span>Value:</span>
+                  <code id=""currentKeyName"" class=""small text-white-50"">[none]</code>
+                </h6>
+                <select id=""jsonModeSelector"" class=""form-select form-select-sm w-auto"" onchange=""onViewerChange(this.value)"">
+                  <option value=""view"">View</option>
+                  <option value=""tree"">Tree</option>
+                  <option value=""code"">Code</option>
+                  <option value=""form"">Form</option>
+                  <option value=""text"">Text</option>
+                  <option value=""highlight"">Highlight.js</option>
+                </select>
+              </div>
+
+              <div class=""card-body p-0"">
+                <!-- Scrollable content area -->
+                <div class=""overflow-auto custom-scroll"" style=""max-height: 650px; min-height: 650px;"">
+
+                  <!-- Highlight.js container -->
                   <pre id=""hljsContainer"" class=""mb-0 language-json d-none"" style=""white-space: pre-wrap; word-break: break-word;"">
                     <code id=""valueContent"">Select a key to view its value...</code>
                   </pre>
 
-                  <!-- Contenedor para JSONEditor -->
-                  <div id=""jsonEditorContainer"" style=""height: 100%;""></div>
+                  <!-- JSON Editor container -->
+                  <div id=""jsonEditorContainer"" style=""min-height: 650px;""></div>
+                  <style>
+                      #jsonEditorContainer .jsoneditor {{ border: 1px solid #dc3545 !important; background-color: #fff5f5 !important; }}
+                      #jsonEditorContainer .jsoneditor-menu {{ background-color: #dc3545 !important; color: white !important; }}
+                      #jsonEditorContainer .jsoneditor-selected {{ background-color: #f8d7da !important; }}
+                    </style>
                 </div>
-              </div>";
+              </div>
+            </div>";
+
         #endregion HTML
 
         #region JS
@@ -200,8 +261,8 @@ namespace RedisUI.Pages
         private static string BuildDOMContentLoaded() => $@"
             document.addEventListener('DOMContentLoaded', function () {{
                 toggleView('tree');
-                highlightActiveDbAndSize();
                 setupNextButton(0);
+                highlightActiveDbAndSize();
             }});
         ";
 
@@ -209,9 +270,17 @@ namespace RedisUI.Pages
             function highlightActiveDbAndSize() {{
                 const params = new URLSearchParams(window.location.search);
                 const db = params.get('db') || '0';
-                document.getElementById('nav' + db)?.classList.add('active');
-                document.getElementById('size' + (params.get('size') || '500'))?.classList.add('active');
+                const size = params.get('size') || '500';
+
+                document.querySelectorAll('.dropdown-item').forEach(el => {{
+                    el.classList.remove('bg-light', 'text-dark', 'fw-semibold');
+                }});
+
+                document.getElementById('nav' + db)?.classList.add('bg-light', 'text-dark', 'fw-semibold');
+                document.getElementById('size' + size)?.classList.add('active');
+                showPage(0, params.get('db'));
             }}
+
 
             function setupNextButton(cursor) {{
                 const btnNext = document.getElementById('btnNext');
@@ -257,17 +326,19 @@ namespace RedisUI.Pages
               }}
             }}
 
-            function renderDetailPanel(detail) {{
-              window.currentDetail = detail; // guardamos para re-render con JSONEditor
+            function renderDetailPanel(key, detail) {{
+              window.currentDetail = detail;
+              window.currentKey = key;
+
+              document.getElementById('currentKeyName').textContent = key || '[none]';
 
               const mode = document.getElementById('jsonModeSelector').value;
+
               if (mode === 'highlight') {{
-                // Highlight.js
                 const codeEl = document.getElementById('valueContent');
                 codeEl.textContent = JSON.stringify(detail, null, 2);
                 hljs.highlightElement(codeEl);
               }} else {{
-                // JSONEditor
                 ensureJsonEditor(mode);
                 jsonEditorInstance.set(detail);
               }}
@@ -325,7 +396,19 @@ namespace RedisUI.Pages
                   </td>
                 `;
 
-                tr.addEventListener(""click"", () => renderDetailPanel(key.detail.value));
+                tr.addEventListener(""click"", function (e) {{
+                  if (e.target.closest(""input, button, a"")) return;
+
+                  const value = this.getAttribute(""data-value"");
+                  const key = this.getAttribute(""data-key"");
+
+                  try {{
+                    renderDetailPanel(key, JSON.parse(value));
+                  }} catch (err) {{
+                    console.error(""Invalid JSON in data-value"", err);
+                  }}
+                }});
+
                 tbody.appendChild(tr);
               }});
             }}
@@ -443,7 +526,7 @@ namespace RedisUI.Pages
                         Size: ${{key.detail.length}} KB
                     </small>`;
 
-                    detailSpan.onclick = () => renderDetailPanel(JSON.parse(detailSpan.dataset.value));
+                    detailSpan.onclick = () => renderDetailPanel(detailSpan.dataset.key, JSON.parse(detailSpan.dataset.value));
 
                   
                     const deleteBtn = document.createElement(""a"");
@@ -451,13 +534,11 @@ namespace RedisUI.Pages
                     deleteBtn.innerHTML = ""<i class='bi bi-trash-fill'></i>"";
                     deleteBtn.onclick = () => confirmDelete(key.name);
 
-                    // Agrupamos checkbox + texto
                     const divContentLeft = document.createElement(""div"");
                     divContentLeft.className = ""d-flex align-items-center gap-2"";
                     divContentLeft.appendChild(checkbox);
                     divContentLeft.appendChild(detailSpan);
 
-                    // Contenedor principal: alineamos extremos
                     const divKey = document.createElement(""div"");
                     divKey.className = ""d-flex justify-content-between align-items-center w-100"";
                     divKey.appendChild(divContentLeft);
@@ -565,6 +646,9 @@ namespace RedisUI.Pages
               const key = document.getElementById('searchInput')?.value || '';
               params.set('key', key);
 
+              const type = document.getElementById('keyTypeFilter')?.value || '';
+              params.set('type', type);
+
               fetch(`${{API_PATH_BASE_URL}}/keys?${{params.toString()}}`)
                 .then(res => res.json())
                 .then(data => {{
@@ -576,9 +660,10 @@ namespace RedisUI.Pages
                   console.error(""Error loading keys"", err);
                 }})
                 .finally(() => {{
-                  isLoading = false; // Liberar bloqueo al terminar
+                  isLoading = false;
                 }});
             }}
+
 
             function confirmDelete(delKey) {{
                 if (!confirm(`Are you sure to delete key '${{delKey}}'?`)) return;
