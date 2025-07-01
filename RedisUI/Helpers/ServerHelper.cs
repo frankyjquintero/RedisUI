@@ -110,5 +110,64 @@ namespace RedisUI.Helpers
             return deletedCount;
             
         }
+
+        public static async Task<int> BulkDeleteKeys(IDatabase redisDb, IEnumerable<string> keys)
+        {
+            return await DeleteKeys(redisDb, keys);
+        }
+
+        public static async Task<int> BulkExpireKeys(IDatabase redisDb, IEnumerable<string> keys, int ttlSeconds)
+        {
+            int updated = 0;
+            var expireLock = new object();
+
+            await Parallel.ForEachAsync(keys, async (key, ct) =>
+            {
+                try
+                {
+                    if (await redisDb.KeyExpireAsync(key, TimeSpan.FromSeconds(ttlSeconds)))
+                    {
+                        lock (expireLock)
+                        {
+                            updated++;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error expiring key {key}: {ex.Message}");
+                }
+            });
+
+            return updated;
+        }
+
+        public static async Task<int> BulkRenameKeys(IDatabase redisDb, IEnumerable<string> keys, string prefix)
+        {
+            int renamed = 0;
+            var renameLock = new object();
+
+            await Parallel.ForEachAsync(keys, async (key, ct) =>
+            {
+                try
+                {
+                    string newKey = $"{prefix}:{key}";
+                    if (await redisDb.KeyRenameAsync(key, newKey))
+                    {
+                        lock (renameLock)
+                        {
+                            renamed++;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error renaming key {key}: {ex.Message}");
+                }
+            });
+
+            return renamed;
+        }
+
     }
 }

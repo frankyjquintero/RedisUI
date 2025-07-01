@@ -61,6 +61,54 @@
         }
 
         private static string BuildScriptJs() => $@"
+            function saveKey() {{
+              const key = document.getElementById(""insertKey"").value.trim();
+              const type = document.getElementById(""insertType"").value.trim().toLowerCase();
+              const rawValue = document.getElementById(""insertValue"").value.trim();
+              const ttlInput = document.getElementById(""insertTTL"");
+              const ttl = ttlInput && ttlInput.value ? parseInt(ttlInput.value) : null;        
+
+              if (!key || !type || !rawValue) {{
+                alert(""Please fill in all fields."");
+                return;
+              }}
+
+              let parsedValue;
+              try {{
+                parsedValue = JSON.parse(rawValue);
+              }} catch (err) {{
+                alert(""Value must be valid JSON."");
+                return;
+              }}
+
+              const payload = {{
+                name: key,
+                keyType: type,
+                value: parsedValue,
+                ttl: ttl
+              }};
+
+              fetch(`${{API_PATH_BASE_URL}}/keys`, {{
+                method: ""POST"",
+                headers: {{
+                  ""Content-Type"": ""application/json""
+                }},
+                body: JSON.stringify(payload)
+              }})
+                .then(response => {{
+                  if (response.status != 201) throw new Error(""Failed to save key"");
+                  alert(""Key saved successfully."");
+                  document.getElementById(""insertForm"").reset();
+                  const modal = bootstrap.Modal.getInstance(document.getElementById(""insertModal""));
+                  modal.hide();
+                  window.location.reload();
+                }})
+                .catch(err => {{
+                  console.error(""Save failed:"", err);
+                  alert(""Error saving key."");
+                }});
+            }}
+
             function onTypeChange() {{
               const type = document.getElementById(""insertType"").value;
               const valueInput = document.getElementById(""insertValue"");

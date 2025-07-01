@@ -10,14 +10,22 @@ namespace RedisUI.Pages
                 {DeleteModal.Build()}
                 {BuildHeader()}
                 <div class=""row justify-content-start"">
-                    <div class='col-8' style='max-height: 750px; overflow-y: auto;'>
-                      <div id='listView' class='d-none'>
-                        {BuildBaseTable()}
+                    <div class='col-8'>
+                      <section class=""border-bottom pb-2 mb-3"">
+                          {BuildToolbar()}
+                      </section>
+                      <div class=""container-fluid px-0"">
+                        <div class=""card shadow-sm border-0"">
+                            {BuildToolbar2()}
+                            <div id='listView' class='d-none'>
+                                {BuildBaseTable()}
+                            </div>
+                            <div id='treeView' class='custom-scroll'  style='max-height: 750px; overflow-y: auto;'>
+                            </div>
+                        </div>
+                       </div>
                       </div>
-                      <div id='treeView'>
-                      </div>
-                    </div>
-                    <div class='col-4'  style='max-height: 750px; overflow-y: auto;'>
+                    <div class='col-4 custom-scroll'  style='max-height: 750px; overflow-y: auto;'>
                      {BuildValuePanel()}
                     </div>
                 </div>
@@ -30,63 +38,87 @@ namespace RedisUI.Pages
             return html;
         }
 
+        private static string BuildToolbar() => $@"
+            <div class=""d-flex justify-content-between align-items-center mt-2"">
+                <h6 class=""mb-0 fw-semibold d-flex align-items-center"">
+                    <i class='bi bi-table me-1'></i> Redis Keys Overview
+                </h6>                
+                <div class=""btn-group btn-group-sm"" role=""group"" aria-label=""Page size"">                    
+                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size100"" onclick=""setSize(100)""><i class=""bi bi-ui-radios-grid me-1""></i> 100</button>
+                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size500"" onclick=""setSize(500)""><i class=""bi bi-ui-radios-grid me-1""></i> 500</button>
+                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size1000"" onclick=""setSize(1000)""><i class=""bi bi-ui-radios-grid me-1""></i> 1000</button>
+                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size3000"" onclick=""setSize(3000)""><i class=""bi bi-ui-radios-grid me-1""></i> 3000</button>
+                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size5000"" onclick=""setSize(5000)""><i class=""bi bi-ui-radios-grid me-1""></i> 5000</button>
+                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size7000"" onclick=""setSize(7000)""><i class=""bi bi-ui-radios-grid me-1""></i> 7000</button>
+                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size10000"" onclick=""setSize(10000)""><i class=""bi bi-ui-radios-grid me-1""></i> 10000</button>
+                </div>
+            </div>
+        ";
+
+        private static string BuildToolbar2() => $@"
+            <div class=""card-header bg-light border-bottom d-flex align-items-center justify-content-between flex-wrap"">
+                <div class=""btn-group btn-group-sm"" role=""group"">
+                    <button class=""btn btn-outline-primary"" id=""btnlistView"" onclick=""toggleView('list')""><i class=""bi bi-list-ul""></i> List View</button>
+                    <button class=""btn btn-outline-secondary"" id=""btntreeView"" onclick=""toggleView('tree')""><i class=""bi bi-diagram-3""></i> Tree View</button>
+                </div>
+                <div class=""btn-group btn-group-sm"" role=""group"" aria-label=""Page size"">
+                    <button class=""btn btn-outline-danger btn-sm"" onclick=""bulkDelete()"">Bulk Delete</button>
+                    <button class=""btn btn-outline-warning btn-sm"" onclick=""bulkExpire()"">Bulk Expire</button>
+                    <button class=""btn btn-outline-secondary btn-sm"" onclick=""bulkRename()"">Bulk Rename</button>
+                </div>
+            </div>
+        ";
+
+
         #region HTML
         private static string BuildHeader() => $@"
-          <div class=""container-fluid"">
-            <div class=""row align-items-center mb-3"">
-              <div class=""col-sm-12 col-md-6"">
-                <div id=""search"" class=""input-group""></div>
-              </div>
-              <div class=""col-sm-12 col-md-6"">
-                <div class=""d-flex justify-content-end align-items-center gap-2 flex-nowrap"">
-                    <div class=""d-flex my-2"">
-                      <button id=""btnNext"" class=""btn btn-primary"" onclick=""nextPage(0)"">
-                        Next
+            <div class=""container-fluid"">
+              <div class=""row align-items-center mb-3"">
+                <div class=""col-sm-12 col-md-6"">
+                  <div class=""input-group"">
+                    <input type=""text"" id=""searchInput"" class=""form-control"" placeholder=""key or pattern..."" onkeydown=""if(event.key === 'Enter') showPage(0);"">
+                    <button class=""btn btn-outline-success btn-sm"" onclick=""showPage(0)"">Search <i class=""bi bi-search""></i></button>
+                    <button id=""btnNext"" class=""btn btn-primary"" onclick=""nextPage(0)"">Next <i class=""bi bi-chevron-right""></i></button>
+                  </div>
+                </div>
+                <div class=""col-sm-12 col-md-6"">
+                  <div class=""d-flex justify-content-end align-items-center gap-2 flex-nowrap""> 
+                    <div class=""btn-group btn-group-sm"" role=""group"" aria-label=""Page size"">
+                      <button type=""button"" class=""btn btn-success"" data-bs-toggle=""modal"" data-bs-target=""#insertModal"" title=""Add or Edit Key"">
+                        <i class=""bi bi-key-fill""></i> Add
+                      </button>
+                      <button type=""button"" class=""btn btn-danger"" data-bs-toggle=""modal"" data-bs-target=""#deletePatternModal"" title=""Delete Keys by Pattern"">
+                        <i class=""bi bi-trash""></i> Delete
                       </button>
                     </div>
-                   <div class=""btn-group btn-group-sm me-2"" role=""group"">
-                       <button class=""btn btn-outline-primary"" onclick=""toggleView('list')"">List View</button>
-                       <button class=""btn btn-outline-secondary"" onclick=""toggleView('tree')"">Tree View</button>
-                   </div>
-                  <button type=""button"" class=""btn btn-success"" data-bs-toggle=""modal"" data-bs-target=""#insertModal"" title=""Add or Edit Key"">
-                    <i class=""bi bi-key-fill""></i> Add
-                  </button>
-                  <button type=""button"" class=""btn btn-danger"" data-bs-toggle=""modal"" data-bs-target=""#deletePatternModal"" title=""Delete Keys by Pattern"">
-                    <i class=""bi bi-trash""></i> Delete
-                  </button>
-
-                  <div class=""btn-group btn-group-sm"" role=""group"" aria-label=""Page size"">
-                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size1"" onclick=""setSize(1)"">1</button>
-                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size500"" onclick=""setSize(500)"">500</button>
-                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size1000"" onclick=""setSize(1000)"">1000</button>
-                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size3000"" onclick=""setSize(3000)"">3000</button>
-                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size5000"" onclick=""setSize(5000)"">5000</button>
-                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size7000"" onclick=""setSize(7000)"">7000</button>
-                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size10000"" onclick=""setSize(10000)"">10000</button>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>";
+            </div>";
+
 
         private static string BuildBaseTable() => $@"
-          <div class=""container-fluid"">
-                <div class=""table-responsive card shadow-sm"">
-                  <table class=""table table-striped table-hover mb-0"" id=""redisTable"">
-                    <thead class=""table-primary sticky-top"">
-                      <tr>
-                        <th>Type</th>
+        <div class=""table-responsive"">
+            <div style=""max-height: 600px; overflow-y: auto;"">
+                <table class=""table table-bordered table-hover align-middle mb-0 text-nowrap"" id=""redisTable"">
+                    <thead class=""table-primary text-center sticky-top"">
+                    <tr>
+                        <th style=""width: 40px;""><input type=""checkbox"" id=""selectAllKeys"" /></th>
+                        <th style=""width: 120px;"">Type</th>
                         <th>Key</th>
-                        <th>Size (KB)</th>
-                        <th>TTL</th>
-                        <th class=""text-center"">Action</th>
-                      </tr>
+                        <th style=""width: 100px;"">Size (KB)</th>
+                        <th style=""width: 90px;"">TTL</th>
+                        <th style=""width: 110px;"">Action</th>
+                    </tr>
                     </thead>
-                    <tbody id='tableBody'>
+                    <tbody id=""tableBody"">
+                        <!-- rows will be injected here -->
                     </tbody>
-                  </table>
-                </div>
-              </div>";
+                </table>
+            </div>
+        </div>";
+
+
 
         private static string BuildValuePanel() => @"
               <div class=""card shadow-sm h-100"">
@@ -118,7 +150,6 @@ namespace RedisUI.Pages
         {
             return $@"
                 {BuildDOMContentLoaded()}
-                {BuildJsSearch()}
                 {BuildJsHeader()}
                 {BuildJsEditor()}
                 {BuildJsTable()}
@@ -129,45 +160,32 @@ namespace RedisUI.Pages
 
         private static string BuildDOMContentLoaded() => $@"
             document.addEventListener('DOMContentLoaded', function () {{
-                initializeSearch();
+                toggleView('tree');
                 highlightActiveDbAndSize();
                 setupNextButton(0);
             }});
         ";
 
-        private static string BuildJsSearch() => $@"
-            function initializeSearch() {{
-                const params = new URLSearchParams(window.location.search);
-                const db = params.get('db') || '0';
-                const searchContainer = document.getElementById('search');
-                searchContainer.innerHTML = '';
-    
-                const sInput = document.createElement('input');
-                sInput.type = 'text';
-                sInput.className = 'form-control';
-                sInput.placeholder = 'key or pattern...';
-                sInput.id = 'searchInput';
-                sInput.addEventListener('keydown', function(e) {{
-                    if (e.key === 'Enter') {{
-                        e.preventDefault();
-                        showPage(0, db, sInput.value);
-                    }}
-                }});
-
-                const sBtn = document.createElement('button');
-                sBtn.innerText = 'Search';
-                sBtn.className = 'btn btn-outline-success btn-sm ms-2';
-                sBtn.onclick = () => showPage(0, db, sInput.value);
-
-                searchContainer.append(sInput, sBtn);
-            }}
-        ";
-
         private static string BuildJsHeader() => $@"
             function toggleView(view) {{
-              document.getElementById('listView').classList.toggle('d-none', view !== 'list');
-              document.getElementById('treeView').classList.toggle('d-none', view !== 'tree');
+                toggleViewActive = view;
+                const isList = view === 'list';
+                const isTree = view === 'tree';
+
+                document.getElementById('listView').classList.toggle('d-none', !isList);
+                document.getElementById('treeView').classList.toggle('d-none', !isTree);
+                document.getElementById('btnlistView').classList.toggle('active', isList);
+                document.getElementById('btntreeView').classList.toggle('active', isTree);
+
+                if (isList) {{
+                    renderTableBody(currentDataKeys);
+                }} else if (isTree) {{
+                    renderTreeView(currentDataKeys);
+                }}
+
+                setupNextButton(currentCursor);
             }}
+
 
             function highlightActiveDbAndSize() {{
                 const params = new URLSearchParams(window.location.search);
@@ -228,6 +246,22 @@ namespace RedisUI.Pages
         ";
 
         private static string BuildJsTable() => $@"
+            function showTableLoading() {{
+              const tbody = document.getElementById(""tableBody"");
+              if (tbody) {{
+                tbody.innerHTML = `
+                  <tr>
+                    <td colspan=""5"" class=""text-center"">
+                      <div class=""spinner-border text-primary me-2"" role=""status"" style=""width: 1.2rem; height: 1.2rem;"">
+                        <span class=""visually-hidden"">Loading...</span>
+                      </div>
+                      Loading keys...
+                    </td>
+                  </tr>
+                `;
+              }}
+            }}
+
             function renderTableBody(keys) {{
               const tbody = document.getElementById(""tableBody"");
               tbody.innerHTML = """";
@@ -238,6 +272,7 @@ namespace RedisUI.Pages
                 tr.setAttribute(""data-key"", key.name);
 
                 tr.innerHTML = `
+                  <td><input type=""checkbox"" class=""keyCheckbox"" value=""${{key.name}}"" /></td> 
                   <td><span class=""badge ${{key.detail.badge}}"">${{key.detail.type.toUpperCase()}}</span></td>
                   <td>${{key.name}}</td>
                   <td>${{key.detail.length}}</td>
@@ -256,6 +291,21 @@ namespace RedisUI.Pages
         ";
 
         private static string BuildTreeView() => $@"
+
+            function showTreeViewLoading() {{
+              const container = document.getElementById(""treeView"");
+              if (container) {{
+                container.innerHTML = `
+                  <div class=""text-center text-muted p-3"">
+                    <div class=""spinner-border text-success me-2"" role=""status"" style=""width: 1.2rem; height: 1.2rem;"">
+                      <span class=""visually-hidden"">Loading...</span>
+                    </div>
+                    Loading key tree...
+                  </div>
+                `;
+              }}
+            }}
+
             function renderTreeView(keys) {{
               const tree = buildTreeStructure(keys);
               const container = document.getElementById(""treeView"");
@@ -330,35 +380,49 @@ namespace RedisUI.Pages
                 }}
 
                 if (childNode.key) {{
-                  const key = childNode.key;
+                    const key = childNode.key;
 
-                  const detailSpan = document.createElement(""span"");
-                  detailSpan.className = ""text-break"";
-                  detailSpan.style.cursor = ""pointer"";
-                  detailSpan.dataset.key = key.name;
-                  detailSpan.dataset.value = JSON.stringify(key.detail.value);
+                    const detailSpan = document.createElement(""span"");
+                    detailSpan.className = ""text-break"";
+                    detailSpan.style.cursor = ""pointer"";
+                    detailSpan.dataset.key = key.name;
+                    detailSpan.dataset.value = JSON.stringify(key.detail.value);
 
-                  const badge = `<span class='badge ${{key.detail.badge}}'>${{key.detail.type.toUpperCase()}}</span>`;
-                  detailSpan.innerHTML = `
+                    const checkbox = document.createElement(""input"");
+                    checkbox.type = ""checkbox"";
+                    checkbox.className = ""form-check-input me-2 keyCheckbox"";
+                    checkbox.value = key.name;
+                    checkbox.onclick = (e) => e.stopPropagation();
+
+                    const badge = `<span class='badge ${{key.detail.badge}}'>${{key.detail.type.toUpperCase()}}</span>`;
+                    detailSpan.innerHTML = `
                     <i class='bi bi-key-fill'></i> ${{badge}} ${{key.name}}
                     <small class=""text-muted"">
-                      TTL: <span class=""badge bg-secondary"">${{key.detail.ttl ?? ""&#9854;""}}</span> |
-                      Size: ${{key.detail.length}} KB
+                        TTL: <span class=""badge bg-secondary"">${{key.detail.ttl ?? ""&#9854;""}}</span> |
+                        Size: ${{key.detail.length}} KB
                     </small>`;
 
-                  detailSpan.onclick = () => renderDetailPanel(JSON.parse(detailSpan.dataset.value));
+                    detailSpan.onclick = () => renderDetailPanel(JSON.parse(detailSpan.dataset.value));
 
-                  const deleteBtn = document.createElement(""a"");
-                  deleteBtn.className = ""btn btn-sm btn-outline-danger"";
-                  deleteBtn.innerHTML = ""<i class='bi bi-trash-fill'></i>"";
-                  deleteBtn.onclick = () => confirmDelete(key.name);
+                  
+                    const deleteBtn = document.createElement(""a"");
+                    deleteBtn.className = ""btn btn-sm btn-outline-danger"";
+                    deleteBtn.innerHTML = ""<i class='bi bi-trash-fill'></i>"";
+                    deleteBtn.onclick = () => confirmDelete(key.name);
 
-                  const divKey = document.createElement(""div"");
-                  divKey.className = ""d-flex justify-content-between align-items-center"";
-                  divKey.appendChild(detailSpan);
-                  divKey.appendChild(deleteBtn);
+                    // Agrupamos checkbox + texto
+                    const divContentLeft = document.createElement(""div"");
+                    divContentLeft.className = ""d-flex align-items-center gap-2"";
+                    divContentLeft.appendChild(checkbox);
+                    divContentLeft.appendChild(detailSpan);
 
-                  li.appendChild(divKey);
+                    // Contenedor principal: alineamos extremos
+                    const divKey = document.createElement(""div"");
+                    divKey.className = ""d-flex justify-content-between align-items-center w-100"";
+                    divKey.appendChild(divContentLeft);
+                    divKey.appendChild(deleteBtn);
+
+                    li.appendChild(divKey);
                 }}
 
                 parentElement.appendChild(li);
@@ -369,6 +433,9 @@ namespace RedisUI.Pages
         private static string BuildScriptActions() => $@"
 
             let isLoading = false;
+            let currentDataKeys = [];
+            let currentCursor = 0;
+            let toggleViewActive = 'tree';
 
             function showPage(cursor = 0, db = '0') {{
               if (isLoading) return;
@@ -391,9 +458,9 @@ namespace RedisUI.Pages
               fetch(`${{API_PATH_BASE_URL}}/keys?${{params.toString()}}`)
                 .then(res => res.json())
                 .then(data => {{
-                  renderTableBody(data.keys);
-                  renderTreeView(data.keys);
-                  setupNextButton(data.cursor);
+                  currentDataKeys = data.keys;
+                  currentCursor = data.cursor;
+                  toggleView(toggleViewActive);
                 }})
                 .catch(err => {{
                   console.error(""Error loading keys"", err);
@@ -401,36 +468,6 @@ namespace RedisUI.Pages
                 .finally(() => {{
                   isLoading = false; // Liberar bloqueo al terminar
                 }});
-            }}
-
-            function showTableLoading() {{
-              const tbody = document.getElementById(""tableBody"");
-              if (tbody) {{
-                tbody.innerHTML = `
-                  <tr>
-                    <td colspan=""5"" class=""text-center"">
-                      <div class=""spinner-border text-primary me-2"" role=""status"" style=""width: 1.2rem; height: 1.2rem;"">
-                        <span class=""visually-hidden"">Loading...</span>
-                      </div>
-                      Loading keys...
-                    </td>
-                  </tr>
-                `;
-              }}
-            }}
-
-            function showTreeViewLoading() {{
-              const container = document.getElementById(""treeView"");
-              if (container) {{
-                container.innerHTML = `
-                  <div class=""text-center text-muted p-3"">
-                    <div class=""spinner-border text-success me-2"" role=""status"" style=""width: 1.2rem; height: 1.2rem;"">
-                      <span class=""visually-hidden"">Loading...</span>
-                    </div>
-                    Loading key tree...
-                  </div>
-                `;
-              }}
             }}
 
             function nextPage(cursor) {{
@@ -481,61 +518,65 @@ namespace RedisUI.Pages
                 }});
             }}
 
-
-            function saveKey() {{
-              const key = document.getElementById(""insertKey"").value.trim();
-              const type = document.getElementById(""insertType"").value.trim().toLowerCase();
-              const rawValue = document.getElementById(""insertValue"").value.trim();
-              const ttlInput = document.getElementById(""insertTTL"");
-              const ttl = ttlInput && ttlInput.value ? parseInt(ttlInput.value) : null;        
-
-              if (!key || !type || !rawValue) {{
-                alert(""Please fill in all fields."");
-                return;
+            document.addEventListener(""change"", function(e) {{
+              if (e.target.id === ""selectAllKeys"") {{
+                const all = document.querySelectorAll("".keyCheckbox"");
+                all.forEach(cb => cb.checked = e.target.checked);
               }}
+            }});
 
-              let parsedValue;
-              try {{
-                parsedValue = JSON.parse(rawValue);
-              }} catch (err) {{
-                alert(""Value must be valid JSON."");
-                return;
-              }}
-
-              const payload = {{
-                name: key,
-                keyType: type,
-                value: parsedValue,
-                ttl: ttl
-              }};
-
-              fetch(`${{API_PATH_BASE_URL}}/keys`, {{
-                method: ""POST"",
-                headers: {{
-                  ""Content-Type"": ""application/json""
-                }},
-                body: JSON.stringify(payload)
-              }})
-                .then(response => {{
-                  if (response.status != 201) throw new Error(""Failed to save key"");
-                  alert(""Key saved successfully."");
-                  document.getElementById(""insertForm"").reset();
-                  const modal = bootstrap.Modal.getInstance(document.getElementById(""insertModal""));
-                  modal.hide();
-                  window.location.reload();
-                }})
-                .catch(err => {{
-                  console.error(""Save failed:"", err);
-                  alert(""Error saving key."");
-                }});
+            function getSelectedKeys() {{
+              return Array.from(document.querySelectorAll("".keyCheckbox:checked""))
+                          .map(cb => cb.value);
             }}
 
+            function bulkDelete() {{
+              const keys = getSelectedKeys();
+              if (!keys.length) return alert(""No keys selected."");
+              if (!confirm(`Delete ${{keys.length}} keys?`)) return;
 
-            function checkRequired() {{
-                const k = document.getElementById('insertKey').value;
-                const v = document.getElementById('insertValue').value;
-                document.getElementById('btnSave').disabled = !(k && v);
+              fetch(`${{API_PATH_BASE_URL}}/bulk-operation`, {{
+                method: 'POST',
+                headers: {{ ""Content-Type"": ""application/json"" }},
+                body: JSON.stringify({{ operation: ""Delete"", keys: keys }})
+              }}).then(r => r.text()).then(msg => {{
+                alert(msg);
+                showPage(0);
+              }});
             }}
+
+            function bulkExpire() {{
+              const keys = getSelectedKeys();
+              if (!keys.length) return alert(""No keys selected."");
+              const ttl = prompt(""TTL en segundos:"");
+              if (!ttl || isNaN(ttl)) return alert(""TTL inválido."");
+
+              fetch(`${{API_PATH_BASE_URL}}/bulk-operation`, {{
+                method: 'POST',
+                headers: {{ ""Content-Type"": ""application/json"" }},
+                body: JSON.stringify({{ operation: ""Expire"", keys: keys, args: parseInt(ttl) }})
+              }}).then(r => r.text()).then(msg => {{
+                alert(msg);
+                showPage(0);
+              }});
+            }}
+
+            function bulkRename() {{
+              const keys = getSelectedKeys();
+              if (!keys.length) return alert(""No keys selected."");
+              const prefix = prompt(""Nuevo prefijo:"");
+              if (!prefix) return;
+
+              fetch(`${{API_PATH_BASE_URL}}/bulk-operation`, {{
+                method: 'POST',
+                headers: {{ ""Content-Type"": ""application/json"" }},
+                body: JSON.stringify({{ operation: ""Rename"", keys: keys, args: {{ prefix: prefix }} }})
+              }}).then(r => r.text()).then(msg => {{
+                alert(msg);
+                showPage(0);
+              }});
+            }}
+
         ";
 
         #endregion JS

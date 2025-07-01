@@ -113,7 +113,12 @@ namespace RedisUI
                     p => p == $"{_settings.Path}/delete-by-pattern",
                     HttpMethods.Post,
                     () => HandleDeleteByPattern(context, redisDb)
-                )
+                ),
+                (
+                    p => p == $"{_settings.Path}/bulk-operation",
+                    HttpMethods.Post,
+                    () => HandleBulkOperation(context, redisDb)
+                ),
             };
 
             foreach (var (PathMatch, Method, Handler) in routeHandlers)
@@ -226,6 +231,66 @@ namespace RedisUI
             context.Response.StatusCode = StatusCodes.Status200OK;
             await context.Response.WriteAsync($"{deletedCount} keys deleted.");
         }
+
+        private static async Task HandleBulkOperation(HttpContext context, IDatabase redisDb)
+        {
+            var operationRequest = await JsonSerializer.DeserializeAsync<BulkOperationModel>(
+                context.Request.Body,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (operationRequest == null || string.IsNullOrEmpty(operationRequest.Operation) || operationRequest.Keys == null)
+            {
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                await context.Response.WriteAsync("Invalid request.");
+                return;
+            }
+
+            var user = context.User?.Identity?.Name ?? "anonymous";
+            var timestamp = DateTime.UtcNow;
+
+            switch (operationRequest.Operation.ToLower())
+            {
+                case "delete":
+                    var deleted = await ServerHelper.BulkDeleteKeys(redisDb, operationRequest.Keys);
+                    Console.WriteLine($"[Bulk-Delete] {deleted} keys deleted by {user} at {timestamp}");
+                    context.Response.StatusCode = StatusCodes.Status200OK;
+                    await context.Response.WriteAsync($"{deleted} keys deleted.");
+                    break;
+
+                case "expire":
+                    if (operationRequest.Args == null || !int.TryParse(operationRequest.Args.ToString(), out int ttl))
+                    {
+                        context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                        await context.Response.WriteAsync("Missing or invalid TTL in 'Args'.");
+                        return;
+                    }
+                    var expired = await ServerHelper.BulkExpireKeys(redisDb, operationRequest.Keys, ttl);
+                    Console.WriteLine($"[Bulk-Expire] {expired} keys set to expire in {ttl}s by {user} at {timestamp}");
+                    context.Response.StatusCode = StatusCodes.Status200OK;
+                    await context.Response.WriteAsync($"{expired} keys updated with TTL.");
+                    break;
+
+                case "rename":
+                    if (operationRequest.Args is not JsonElement el || !el.TryGetProperty("prefix", out var prefixElement))
+                    {
+                        context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                        await context.Response.WriteAsync("Missing prefix in 'Args'.");
+                        return;
+                    }
+                    string prefix = prefixElement.GetString();
+                    var renamed = await ServerHelper.BulkRenameKeys(redisDb, operationRequest.Keys, prefix);
+                    Console.WriteLine($"[Bulk-Rename] {renamed} keys renamed with prefix '{prefix}' by {user} at {timestamp}");
+                    context.Response.StatusCode = StatusCodes.Status200OK;
+                    await context.Response.WriteAsync($"{renamed} keys renamed.");
+                    break;
+
+                default:
+                    context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                    await context.Response.WriteAsync("Unsupported operation.");
+                    break;
+            }
+        }
+
 
         private bool IsPathMatch(string path) =>
             path.ToString().StartsWith(_settings.Path);
