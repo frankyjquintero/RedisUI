@@ -27,21 +27,47 @@
 		<PackageTags>Redis, Web, UI, Client, Keys, Statistics, ASP.NET Core, Redis Viewer, Admin UI, Dashboard, Fork</PackageTags>
 
 		<PackageReleaseNotes>
-			✅ Added support for Redis data types (Stream, Sorted Set, Hash)
-			✅ Improved null-safety to prevent NullReferenceException
-			✅ Enhanced JSON key inspection with Monokai highlighting
-			✅ Refactored UI rendering and JS cleanup (SCAN optimized)
-			✅ Async parallel performance for Redis stats and key resolution
-			✅ Middleware API improvements with overloads instead of optionals
-			✅ Extended support to .NET 9 in TargetFrameworks
-			✅ Dashboard Authorization Filters
-			✅ Added RedisUISettings for configuration jsonEditor, highlight.js, and Bootstrap links
-			✅ Added BuildTreeView, colored cells, and improved key rendering
+			<PackageReleaseNotes>
+			  🚀 AJAX-based UI rendering:
+				• Migrated legacy form posts to fetch-based asynchronous calls for key operations (GET, SET, DEL, EXPIRE)
+				• Improved responsiveness and reduced full page reloads
+
+			  🧱 Bulk Operations Toolkit:
+				• Added support for deleting multiple keys via pattern-matching and confirmation modal
+				• TTL and rename batch processing with unified modal-based UX
+				• Middleware-level operation logging for mass operations
+
+			  🔐 Authentication Enhancements:
+				• Logout flow integrated for Basic Auth with 401 redirect and UI cleanup
+				• DashboardBasicAuthorizationFilter improved for consistent challenge handling
+
+			  📦 Redis Core Features:
+				• FlushDB button with async confirmation
+				• Key TTL inspection and modification
+				• TreeView/ListView toggle with prefix-based grouping and client-side rendering
+
+			  🎨 UI/UX - Asset Improvements:
+				• Integrated Bootstrap Icons for visual clarity (types: string, list, set, zset, hash, stream)
+				• Refactored JS loading order and modularization
+				• Added Monokai-style JSON editor with highlight.js for better value inspection
+
+			  📊 Redis Key Statistics:
+				• SCAN pagination optimized using async fetch with memory-efficient iteration
+				• Key type and TTL hints embedded in result cards
+
+			  🛠️ Configuration - Extensibility:
+				• Added `RedisUISettings` class for runtime configuration of assets (js/css)
+				• Exposed `BuildTreeView()` option and customizable display format
+				• Fully targets .NET 6.0, 7.0, 8.0, and 9.0 in `TargetFrameworks`
+
+			  👥 Contributors: Franky J. Quintero, Emrah Kondur
+			</PackageReleaseNotes>
+
 		</PackageReleaseNotes>
 
 		<IncludeSymbols>True</IncludeSymbols>
 		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
-		<Version>2.2.1</Version>
+		<Version>2.3.0</Version>
 	</PropertyGroup>
 	<ItemGroup>
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />

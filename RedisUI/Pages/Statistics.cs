@@ -1,6 +1,5 @@
 ﻿using RedisUI.Models;
 using RedisUI.Helpers;
-using RedisUI.Contents;
 using System.Linq;
 using System.Collections.Generic;
 
@@ -18,31 +17,32 @@ namespace RedisUI.Pages
 
                 return $@"
                 <div class=""row"">
-                    {Card(Icons.Server, "Server", new[] {
+                    {Card("<i class=\"bi bi-hdd-network\"></i>", "Server", new[] {
                         $"Redis Version: <strong>{model.Server.RedisVersion}</strong>",
                         $"Redis Mode: <strong>{model.Server.RedisMode}</strong>",
                         $"TCP Port: <strong>{model.Server.TcpPort}</strong>"
                     })}
-                    {Card(Icons.Memory, "Memory", new[] {
+                    {Card("<i class=\"bi bi-memory\"></i>", "Memory", new[] {
                         $"Used Memory: <strong>{model.Memory.UsedMemory.ToMegabytes()}</strong>M",
                         $"Used Memory Peak: <strong>{model.Memory.UsedMemoryPeak.ToMegabytes()}</strong>M",
                         $"Used Memory Lua: <strong>{model.Memory.UsedMemoryLua.ToMegabytes()}</strong>M"
                     })}
-                    {Card(Icons.Stats, "Stats", new[] {
+                    {Card("<i class=\"bi bi-bar-chart\"></i>", "Stats", new[] {
                         $"Total Connections Received: <strong>{model.Stats.TotalConnectionsReceived}</strong>",
                         $"Total Commands Processed: <strong>{model.Stats.TotalCommandsProcessed}</strong>",
                         $"Expired Keys: <strong>{model.Stats.ExpiredKeys}</strong>"
                     })}
                 </div>
                 <div class=""row"">
-                    {Table(Icons.KeySm, "Key Statistics", new[] { "DB", "Keys", "Expires", "Avg Ttl" }, keyspaceRows)}
+                    {Table("<i class=\"bi bi-key-fill\"></i>", "Key Statistics", new[] { "DB", "Keys", "Expires", "Avg Ttl" }, keyspaceRows)}
                 </div>
                 <div class=""row"">
-                    {Table(Icons.Info, "All Information", new[] { "Key", "Value" }, infoRows)}
+                    {Table("<i class=\"bi bi-info-circle\"></i>", "All Information", new[] { "Key", "Value" }, infoRows)}
                 </div>";
-            }
 
-            private static string Card(string icon, string title, string[] items) =>
-                $@"<div class=""col-4""><div class=""card border-info mb-3 sticky-top""><div class=""card-header""><strong><span>{icon}</span>{title}</strong></div><div class=""card-body""><ul class=""list-group list-group-flush"">{string.Join("", items.Select(i => $@"<li class=""list-group-item"">{i}</li>"))}</ul></div></div></div>";
+        }
+
+        private static string Card(string icon, string title, string[] items) =>
+                $@"<div class=""col-4""><div class=""card border-info mb-3 sticky-top""><div class=""card-header""><strong><span>{icon}</span> {title}</strong></div><div class=""card-body""><ul class=""list-group list-group-flush"">{string.Join("", items.Select(i => $@"<li class=""list-group-item"">{i}</li>"))}</ul></div></div></div>";
         }
 }

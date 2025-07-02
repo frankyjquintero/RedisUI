@@ -30,6 +30,11 @@ namespace RedisUI
         public string CssLink { get; set; } = "https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css";
 
         /// <summary>
+        /// Gets or sets the CSS link for Bootstrap icons.
+        /// </summary>
+        public string BootstrapIcons { get; set; } = "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css";
+
+        /// <summary>
         /// Gets or sets the JavaScript link for Bootstrap.
         /// </summary>
         public string JsLink { get; set; } = "https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js";
@@ -49,7 +54,14 @@ namespace RedisUI
         /// </summary>
         public string HighlightJson { get; set; } = "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js";
 
+        /// <summary>
+        /// Gets or sets the CSS link for JSON Editor.
+        /// </summary>
         public string JsonEditorCss { get; set; } = "https://cdn.jsdelivr.net/npm/jsoneditor@9.10.0/dist/jsoneditor.min.css";
+
+        /// <summary>
+        /// Gets or sets the JS link for JSON Editor.
+        /// </summary>
         public string JsonEditorJs { get; set; } = "https://cdn.jsdelivr.net/npm/jsoneditor@9.10.0/dist/jsoneditor.min.js";
 
     }

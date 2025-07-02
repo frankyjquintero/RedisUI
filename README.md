@@ -7,22 +7,6 @@
 
 ---
 
-## 🔥 What’s New in RedisUI.Dashboard
-
-This fork includes major improvements over the original RedisUI:
-
-- ✅ **Support for Redis data types**: Stream, Sorted Set, Hash, List, Set, String.
-- ✅ **Error prevention**: Null-safe resolution to prevent `NullReferenceException`.
-- ✅ **Monokai-highlighted JSON**: Key values rendered as readable formatted JSON.
-- ✅ **UI and performance upgrades**:
-  - Redesigned layout and styles
-  - SCAN cursor enhancements
-  - Async parallel Redis key & stat resolution
-- ✅ **Middleware refactor**: Clearer API with overloads instead of optional params.
-- ✅ **.NET 9 support**: Added to `TargetFrameworks`.
-- Extras
----
-
 ## 🚀 Installation
 
 Install via NuGet:
@@ -30,41 +14,66 @@ Install via NuGet:
 ```bash
 dotnet add package RedisUI.Dashboard
 ```
-## 🔧 Recent Enhancements by @frankyjquintero
+## 🔥 What’s New in RedisUI.Dashboard
 
-This project has undergone several significant improvements to enhance functionality, robustness, and forward compatibility. Notable changes include:
+**UI**
 
-- ✅ **Support for additional Redis data types**: Stream, Sorted Set, Hash, and more are now properly rendered, enabling a complete view of Redis contents regardless of type.
-- ✅ **Error prevention enhancements**: Added null-safety guards and robust checks to prevent potential `NullReferenceException` issues identified via static analysis tools.
-- ✅ **Cleaner JSON handling**: Redis key values are now intelligently parsed into JSON with Monokai syntax highlighting, making complex structures easier to inspect and debug.
-- ✅ **Improved UI stability and experience**: Reorganized HTML layout with Bootstrap 5.3, cleaned JS logic, and improved key loading via cursor-based SCAN to support large datasets.
-- ✅ **Optimized performance**: Implemented async parallel processing for Redis `INFO` and key type/value resolution, along with a singleton-managed `ConnectionMultiplexer`.
-- ✅ **Simplified middleware API**: Refactored core middleware components (`RedisUIMiddleware`, `RedisKeyValueResolver`) and transitioned from optional parameters to clearer overloads for maintainability.
-- ✅ **Extended .NET support**: Added multi-target support for .NET 6, 7, 8, and 9 for wider compatibility and future readiness.
-- ✅ **Authorization filters added**: Introduced pluggable security options including Basic Auth, JWT Role, Claim-based, IP Whitelisting, and environment-based access control.
-- ✅ **Dashboard path customization**: You can now configure the Redis UI path, enabling cleaner route separation (e.g., `/redis-admin`).
-- ✅ **Package metadata improvements**: Updated NuGet packaging details (license, readme, tags, project URL) for better discoverability and transparency.
-- ✅ **Redis key explorer UI improvements**: TreeView redesigned for flat mode, zebra-style list groups, expandable folders, delete buttons, and TTL/size display.
+![image](https://raw.githubusercontent.com/frankyjquintero/RedisUI/refs/heads/main/Images/460269034-fff57472-aa3d-431b-a015-f804af69fadb2.png)
+![image](https://raw.githubusercontent.com/frankyjquintero/RedisUI/refs/heads/main/Images/460269034-fff57472-aa3d-431b-a015-f804af69fadb3.png)
+![image](https://raw.githubusercontent.com/frankyjquintero/RedisUI/refs/heads/main/Images/460269034-fff57472-aa3d-431b-a015-f804af69fadb4.png)
+![image](https://raw.githubusercontent.com/frankyjquintero/RedisUI/refs/heads/main/Images/460269034-fff57472-aa3d-431b-a015-f804af69fadb5.png)
+![image](https://raw.githubusercontent.com/frankyjquintero/RedisUI/refs/heads/main/Images/460269034-fff57472-aa3d-431b-a015-f804af69fad1.png)
 
-> These improvements aim to modernize and stabilize the RedisUI integration, making it more production-ready and developer-friendly.
+**Server Statistics**
+![image](https://raw.githubusercontent.com/frankyjquintero/RedisUI/refs/heads/main/Images/460253801-1a9ed6db-bbe7-41ec-92e9-701ed37bae1b.png)
 
+
+This project has received major updates focused on interactivity, scalability, and developer control. Key highlights:
+
+- ✅ **AJAX-powered UI actions**: Redis key operations (`GET`, `SET`, `DEL`, `EXPIRE`) are now handled asynchronously using `fetch`, improving responsiveness without full page reloads.
+- ✅ **Bulk key operations**: Added mass delete, TTL updates, and key renaming using batch processing with confirmation modals and logging.
+- ✅ **Redis `FlushDB` support**: A secure, confirmable button allows full database flush directly from the UI.
+- ✅ **Live filtering of keys**: Enhanced input-based key filtering using SCAN with client-side prefix grouping (TreeView/ListView).
+- ✅ **Logout for Basic Auth**: Clear session via a dedicated logout endpoint with UI cleanup and 401 handling.
+- ✅ **New icons & visuals**: Integrated [Bootstrap Icons](https://icons.getbootstrap.com/) for each Redis data type, improving UX clarity.
+- ✅ **Improved key explorer**: TreeView now supports dynamic folders, expandable paths, zebra-style lists, and TTL badges.
+- ✅ **Highlighting & JSON viewer**: Enhanced JSON inspection with [highlight.js](https://highlightjs.org/) and Monokai styling for readability.
+- ✅ **Custom configuration system**: The `RedisUISettings` class enables easy override of UI scripts, styles, and layout behavior.
+- ✅ **Support for Redis core types**: Fully supports String, Hash, List, Set, Sorted Set, and Stream types.
+- ✅ **Optimized SCAN performance**: Pagination and lazy rendering prevent UI freezes on large datasets.
+- ✅ **Extended .NET compatibility**: Supports `net6.0`, `net7.0`, `net8.0`, and `.NET 9` preview builds.
+- ✅ **Security & Auth**: Plug-and-play support for `Basic`, `Claims`, `Role`, `IP Whitelist`, and environment-based filters.
+
+> RedisUI.Dashboard is now more modular, responsive, and production-ready—ideal for devs managing modern Redis workloads.
 
 ## 🔧 Custom JS and CSS for RedisUI Viewer
 
-You can customize the appearance and behavior of the Redis UI by providing your own JavaScript and CSS files. This is useful if you want to use local versions of Bootstrap, syntax highlighters, or JSON viewers.
+You can customize the appearance, behavior, and integration path of the Redis UI by providing your own configuration. This includes support for custom Bootstrap/CDN links, JSON editor libraries, and even authentication filtering.
 
 ### Example
 
 ```csharp
 app.UseRedisUI(new RedisUISettings
 {
-    CssLink = "/assets/css/bootstrap.min.css",
-    JsLink = "/assets/js/bootstrap.bundle.min.js",
-    HighlightTheme = "/assets/css/highlight-dark.css",
-    HighlightJs = "/assets/js/highlight.min.js",
-    HighlightJson = "/assets/js/json-viewer.js"
+    Path = "/redis-admin",
+    ConnectionString = "localhost",
+    AuthorizationFilter = new DashboardBasicAuthorizationFilter("admin", "password"),
+
+    // UI Styling and Functionality
+    CssLink = "https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css",
+    BootstrapIcons = "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css",
+    JsLink = "https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js",
+
+    // Syntax Highlighting (highlight.js)
+    HighlightTheme = "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/monokai.min.css",
+    HighlightJs = "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js",
+    HighlightJson = "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js",
+
+    // JSON Editor (jsoneditor)
+    JsonEditorCss = "https://cdn.jsdelivr.net/npm/jsoneditor@9.10.0/dist/jsoneditor.min.css",
+    JsonEditorJs = "https://cdn.jsdelivr.net/npm/jsoneditor@9.10.0/dist/jsoneditor.min.js"
 });
-```
+
 
 ## 🔐 Dashboard Authorization Filters
 
@@ -260,15 +269,6 @@ public static IServiceCollection AddAllConfigurations(this IServiceCollection se
 ---
 
 These filters give you flexibility to secure your Redis UI in the way that best matches your application's security model.
-
-
-**UI**
-![image](https://raw.githubusercontent.com/frankyjquintero/RedisUI/refs/heads/main/Images/460269006-f34f3242-f660-49a0-8d50-5e62125a5640.png)
-![image](https://raw.githubusercontent.com/frankyjquintero/RedisUI/refs/heads/main/Images/460269034-fff57472-aa3d-431b-a015-f804af69fadb.png)
-
-**Server Statistics**
-![image](https://raw.githubusercontent.com/frankyjquintero/RedisUI/refs/heads/main/Images/460253801-1a9ed6db-bbe7-41ec-92e9-701ed37bae1b.png)
-
 
 👉 You can review the updated source and commits at [github.com/frankyjquintero/RedisUI](https://github.com/frankyjquintero/RedisUI)
 

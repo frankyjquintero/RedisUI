@@ -1,234 +1,317 @@
-﻿using RedisUI.Contents;
-using RedisUI.Helpers;
-using RedisUI.Models;
-using System.Collections.Generic;
-using System.Text;
-using System.Text.Json;
-
-namespace RedisUI.Pages
+﻿namespace RedisUI.Pages
 {
     public static class Main
     {
-        public static string Build(List<KeyModel> keys, long next)
+        public static string BuildBase(RedisUISettings settings)
         {
-            var tbody = BuildTableBody(keys);
-            var listView = BuildTable(tbody);
-            var treeView = BuildTreeView(keys);
-
             var html = $@"
                 {InsertModal.Build()}
-                {BuildHeader(next)}
+                {DeleteModal.Build()}
+                {BuildHeader()}
                 <div class=""row justify-content-start"">
-                    <div class='col-8' style='max-height: 750px; overflow-y: auto;'>
-                      <div id='listView' class='d-none'>
-                         {listView}
+                    <div class='col-8'>
+                      <section class=""border-bottom pb-2 mb-3"">
+                          {BuildToolbar()}
+                      </section>
+                      <div class=""container-fluid px-0"">
+                        <div class=""card shadow-sm border-0"">
+                            {BuildToolbar2()}
+                            <div id='listView' class='d-none'>
+                                {BuildBaseTable()}
+                            </div>
+                            <div id='treeView' class='custom-scroll'  style='max-height: 750px; overflow-y: auto;'>
+                            </div>
+                        </div>
+                       </div>
                       </div>
-                      <div id='treeView'>
-                         {treeView}
-                      </div>
-                    </div>
-                    <div class='col-4'  style='max-height: 750px; overflow-y: auto;'>
+                    <div class='col-4 custom-scroll'  style='max-height: 750px; overflow-y: auto;'>
                      {BuildValuePanel()}
                     </div>
                 </div>
                 <script>
-                    {BuildScript(next)}
+                    const API_PATH_BASE_URL = '{settings.Path}';
+                    {BuildScript()}
                 </script>
             ";
 
             return html;
         }
 
-
-        private static string BuildTreeView(List<KeyModel> keys)
-        {
-            var tree = TreeHelper.Build(keys);
-            var html = new StringBuilder();
-            html.Append("<div class='card p-3'><ul class='list-group'>");
-            TreeHelper.RenderTree(tree, html);
-            html.Append("</ul></div>");
-            return html.ToString();
-        }
-
-
-        private static string BuildTableBody(List<KeyModel> keys)
-        {
-            var tbody = new StringBuilder();
-            foreach (var key in keys)
-            {
-                var json = JsonSerializer.Serialize(key.Detail.Value);
-                var columns = $"<td><span class=\"badge {key.Detail.Badge}\">{key.KeyType.ToString().ToUpper()}</span></td><td>{key.Name}</td><td>{key.Detail.Length}</td><td>{(key.Detail.TTL.HasValue ? $"{key.Detail.TTL} s" : "∞")}</td>";
-                tbody.Append($"<tr style=\"cursor: pointer;\" data-value='{json}' data-key='{key.Name}'>{columns}<td class=\"text-center\"><a onclick=\"confirmDelete('{key.Name}')\" class=\"btn btn-sm btn-outline-danger\"><span>{Icons.Delete}</span></a></td></tr>");
-            }
-            return tbody.ToString();
-        }
-
-        private static string BuildHeader(long next) => $@"
-          <div class=""container-fluid"">
-            <div class=""row align-items-center mb-3"">
-              <div class=""col-sm-12 col-md-6"">
-                <div id=""search"" class=""input-group""></div>
-              </div>
-              <div class=""col-sm-12 col-md-6"">
-                <div class=""d-flex justify-content-end align-items-center gap-2 flex-nowrap"">
-                    <div class=""d-flex my-2"">
-                      <button id=""btnNext"" class=""btn btn-primary"" onclick=""nextPage()"">
-                        {(next == 0 ? "Back to Top" : "Next")}
-                      </button>
-                    </div>
-                   <div class=""btn-group btn-group-sm me-2"" role=""group"">
-                       <button class=""btn btn-outline-primary"" onclick=""toggleView('list')"">List View</button>
-                       <button class=""btn btn-outline-secondary"" onclick=""toggleView('tree')"">Tree View</button>
-                   </div>
-                  <button type=""button"" class=""btn btn-success"" data-bs-toggle=""modal"" data-bs-target=""#insertModal"" title=""Add or Edit Key"">
-                    " + Icons.KeyLg + @" Add/Edit
-                  </button>
-                  <div class=""btn-group btn-group-sm"" role=""group"" aria-label=""Page size"">
-                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size10"" onclick=""setSize(10)"">10</button>
-                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size20"" onclick=""setSize(20)"">20</button>
-                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size50"" onclick=""setSize(50)"">50</button>
-                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size100"" onclick=""setSize(100)"">100</button>
-                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size500"" onclick=""setSize(500)"">500</button>
-                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size1000"" onclick=""setSize(1000)"">1000</button>
-                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size5000"" onclick=""setSize(5000)"">5000</button>
-                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size10000"" onclick=""setSize(10000)"">10000</button>
-                  </div>
+        private static string BuildToolbar() => $@"
+            <div class=""d-flex justify-content-between align-items-center mt-2"">
+                <h6 class=""mb-0 fw-semibold d-flex align-items-center"">
+                    <i class='bi bi-table me-1'></i> Redis Keys Overview
+                </h6>                
+                <div class=""btn-group btn-group-sm"" role=""group"" aria-label=""Page size"">                    
+                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size100"" onclick=""setSize(100)""><i class=""bi bi-ui-radios-grid me-1""></i> 100</button>
+                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size500"" onclick=""setSize(500)""><i class=""bi bi-ui-radios-grid me-1""></i> 500</button>
+                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size1000"" onclick=""setSize(1000)""><i class=""bi bi-ui-radios-grid me-1""></i> 1000</button>
+                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size3000"" onclick=""setSize(3000)""><i class=""bi bi-ui-radios-grid me-1""></i> 3000</button>
+                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size5000"" onclick=""setSize(5000)""><i class=""bi bi-ui-radios-grid me-1""></i> 5000</button>
+                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size7000"" onclick=""setSize(7000)""><i class=""bi bi-ui-radios-grid me-1""></i> 7000</button>
+                    <button type=""button"" class=""btn btn-outline-secondary"" id=""size10000"" onclick=""setSize(10000)""><i class=""bi bi-ui-radios-grid me-1""></i> 10000</button>
                 </div>
-              </div>
+            </div>
+        ";
+
+        private static string BuildToolbar2() => $@"
+            <div class=""card-header bg-light border-bottom d-flex align-items-center justify-content-between flex-wrap gap-2"">
+
+                <!-- View Mode Buttons -->
+                <div class=""btn-group btn-group-sm"" role=""group"" aria-label=""View Mode"">
+                    <button class=""btn btn-outline-primary"" id=""btnlistView"" onclick=""toggleView('list')"">
+                        <i class=""bi bi-list-ul me-1""></i> List View
+                    </button>
+                    <button class=""btn btn-outline-secondary"" id=""btntreeView"" onclick=""toggleView('tree')"">
+                        <i class=""bi bi-diagram-3 me-1""></i> Tree View
+                    </button>
+                </div>
+
+                <!-- Bulk Action Buttons -->
+                <div class=""btn-group btn-group-sm"" role=""group"" aria-label=""Page size"">
+                    <button class=""btn btn-outline-danger"" onclick=""bulkDelete()"" title=""Delete selected keys"">
+                        <i class=""bi bi-trash-fill me-1""></i> Bulk Delete
+                    </button>
+                    <button class=""btn btn-outline-warning"" onclick=""bulkExpire()"" title=""Expire selected keys"">
+                        <i class=""bi bi-clock me-1""></i> Bulk Expire
+                    </button>
+                    <button class=""btn btn-outline-secondary"" onclick=""bulkRename()"" title=""Rename selected keys"">
+                        <i class=""bi bi-pencil-square me-1""></i> Bulk Rename
+                    </button>
+                </div>
+
+            </div>";
+
+
+
+        #region HTML
+        private static string BuildHeader() => $@"
+          <div class=""container-fluid mb-3"">
+            <div class=""row align-items-center"">
+
+                <!-- Izquierda: Filtro y Búsqueda alineados horizontalmente -->
+                <div class=""col-md-6"">
+                    <div class=""d-flex align-items-center gap-2 w-100"">
+    
+                    <!-- Filtro por tipo -->
+                    <div class=""input-group input-group-sm"" style=""width: 180px;"">
+                        <span class=""input-group-text""><i class=""bi bi-funnel""></i></span>
+                        <select id=""keyTypeFilter"" class=""form-select form-select-sm"" onchange=""showPage(0)"">
+                        <option value="""">All</option>
+                        <option value=""string"">String</option>
+                        <option value=""list"">List</option>
+                        <option value=""set"">Set</option>
+                        <option value=""sortedset"">Sorted Set</option>
+                        <option value=""hash"">Hash</option>
+                        <option value=""stream"">Stream</option>
+                        </select>
+                    </div>
+
+                    <!-- Búsqueda -->
+                    <div class=""input-group input-group-sm flex-grow-1"">
+                        <input type=""text"" id=""searchInput"" class=""form-control"" placeholder=""Key or pattern..."" 
+                                onkeydown=""if(event.key === 'Enter') showPage(0);"">
+                        <button class=""btn btn-outline-success"" onclick=""showPage(0)"" title=""Search"">
+                        <i class=""bi bi-search""></i>
+                        </button>
+                        <button id=""btnNext"" class=""btn btn-primary"" onclick=""nextPage(0)"" title=""Next Page"">
+                        <i class=""bi bi-chevron-right""></i>
+                        </button>
+                    </div>
+
+                    </div>
+                </div>
+
+                <!-- Derecha: Acciones -->
+                <div class=""col-md-6 d-flex justify-content-end align-items-center gap-2"">
+                <div class=""btn-group btn-group-sm"" role=""group"" aria-label=""Key actions"">
+                    <button type=""button"" class=""btn btn-outline-success"" data-bs-toggle=""modal"" data-bs-target=""#insertModal"" title=""Add or Edit Key"">
+                    <i class=""bi bi-plus-circle""></i> Add
+                    </button>
+                    <button type=""button"" class=""btn btn-outline-danger"" data-bs-toggle=""modal"" data-bs-target=""#deletePatternModal"" title=""Delete by Pattern"">
+                    <i class=""bi bi-trash""></i> Delete
+                    </button>
+                </div>
+                </div>
+
             </div>
           </div>";
 
-        private static string BuildTable(string tbody) => $@"
-          <div class=""container-fluid"">
-                <div class=""table-responsive card shadow-sm"">
-                  <table class=""table table-striped table-hover mb-0"" id=""redisTable"">
-                    <thead class=""table-primary sticky-top"">
-                      <tr>
-                        <th>Type</th>
-                        <th>Key</th>
-                        <th>Size (KB)</th>
-                        <th>TTL</th>
-                        <th class=""text-center"">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {tbody}
-                    </tbody>
-                  </table>
-                </div>
-              </div>";
 
-        private static string BuildValuePanel() => @"
-              <div class=""card shadow-sm h-100"">
-                <div class=""card-header bg-info text-white d-flex justify-content-between align-items-center"">
-                  <span>Value</span>
-                  <select id=""jsonModeSelector"" class=""form-select form-select-sm w-auto"" onchange=""onViewerChange(this.value)"">                    
-                    <option value=""view"">View</option>
-                    <option value=""tree"">Tree</option>
-                    <option value=""code"">Code</option>
-                    <option value=""form"">Form</option>
-                    <option value=""text"">Text</option>
-                    <option value=""highlight"">Highlight.js</option>
-                  </select>
+
+
+        private static string BuildBaseTable() => $@"
+            <div class=""table-responsive"">
+                <div class=""card border-0 shadow-sm"">
+                    <div class=""table-wrapper custom-scroll"" style=""max-height: 600px; overflow-y: auto;"">
+                        <table class=""table table-bordered table-hover align-middle mb-0 text-nowrap"">
+                            <thead class=""table-primary text-center sticky-top"">
+                                <tr>
+                                    <th style=""width: 40px;"">
+                                        <input type=""checkbox"" id=""selectAllKeys"" />
+                                    </th>
+                                    <th style=""width: 120px;"">Type</th>
+                                    <th>Key</th>
+                                    <th style=""width: 100px;"">Size (KB)</th>
+                                    <th style=""width: 90px;"">TTL</th>
+                                    <th style=""width: 110px;"">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id=""tableBody"">
+                                <!-- rows injected here -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <div class=""overflow-auto"" style=""max-height: 650px; min-height: 550px;"">
-                  <!-- Contenedor para highlight.js -->
+            </div>";
+
+
+        private static string BuildValuePanel() => $@"
+            <div class=""card shadow-sm h-100 border-0"">
+              <div class=""card-header bg-danger text-white d-flex justify-content-between align-items-center"">
+                <h6 class=""mb-0 d-flex align-items-center gap-2"">
+                  <i class=""bi bi-box-seam""></i>
+                  <span>Value:</span>
+                  <code id=""currentKeyName"" class=""small text-white-50"">[none]</code>
+                </h6>
+                <select id=""jsonModeSelector"" class=""form-select form-select-sm w-auto"" onchange=""onViewerChange(this.value)"">
+                  <option value=""view"">View</option>
+                  <option value=""tree"">Tree</option>
+                  <option value=""code"">Code</option>
+                  <option value=""form"">Form</option>
+                  <option value=""text"">Text</option>
+                  <option value=""highlight"">Highlight.js</option>
+                </select>
+              </div>
+
+              <div class=""card-body p-0"">
+                <!-- Scrollable content area -->
+                <div class=""overflow-auto custom-scroll"" style=""max-height: 650px; min-height: 650px;"">
+
+                  <!-- Highlight.js container -->
                   <pre id=""hljsContainer"" class=""mb-0 language-json d-none"" style=""white-space: pre-wrap; word-break: break-word;"">
                     <code id=""valueContent"">Select a key to view its value...</code>
                   </pre>
 
-                  <!-- Contenedor para JSONEditor -->
-                  <div id=""jsonEditorContainer"" style=""height: 100%;""></div>
+                  <!-- JSON Editor container -->
+                  <div id=""jsonEditorContainer"" style=""min-height: 650px;""></div>
+                  <style>
+                      #jsonEditorContainer .jsoneditor {{ border: 1px solid #dc3545 !important; background-color: #fff5f5 !important; }}
+                      #jsonEditorContainer .jsoneditor-menu {{ background-color: #dc3545 !important; color: white !important; }}
+                      #jsonEditorContainer .jsoneditor-selected {{ background-color: #f8d7da !important; }}
+                    </style>
                 </div>
-              </div>";
+              </div>
+            </div>";
 
+        #endregion HTML
 
-        private static string BuildScript(long next) => $@"
-            document.addEventListener('DOMContentLoaded', function () {{
-                initializeSearch();
-                highlightActiveDbAndSize();
-                addRowClickListeners();
-                setupNextButton();
-            }});
+        #region JS
+        private static string BuildScript()
+        {
+            return $@"
+                {BuildGlobalVariablesScript()}
+                {BuildDOMContentLoaded()}
+                {BuildNavScript()}
+                {BuildJsHeader()}
+                {BuildToolbarScript()}                               
+                {BuildJsTable()}
+                {BuildTreeView()}
+                {BuildJsEditor()}
+                {BuildScriptActions()}
+            ";
+        }
 
-            document.addEventListener(""DOMContentLoaded"", function () {{
-                document.querySelectorAll("".collapse"").forEach(function (el) {{
-                    el.addEventListener(""shown.bs.collapse"", function () {{
-                        const icon = document.querySelector(`#icon_${{el.id}}`);
-                        if (icon) icon.textContent = ""📂"";
-                    }});
+        private static string BuildToolbarScript()
+        {
+            return $@"
+                function toggleView(view) {{
+                    toggleViewActive = view;
+                    const isList = view === 'list';
+                    const isTree = view === 'tree';
 
-                    el.addEventListener(""hidden.bs.collapse"", function () {{
-                        const icon = document.querySelector(`#icon_${{el.id}}`);
-                        if (icon) icon.textContent = ""📁"";
-                    }});
-                }});
-            }});
+                    document.getElementById('listView').classList.toggle('d-none', !isList);
+                    document.getElementById('treeView').classList.toggle('d-none', !isTree);
+                    document.getElementById('btnlistView').classList.toggle('active', isList);
+                    document.getElementById('btntreeView').classList.toggle('active', isTree);
 
-            function initializeSearch() {{
-                const params = new URLSearchParams(window.location.search);
-                const db = params.get('db') || '0';
-                const key = params.has('key') ? decodeURIComponent(params.get('key')) : '';
-                const searchContainer = document.getElementById('search');
-                searchContainer.innerHTML = '';
-    
-                const sInput = document.createElement('input');
-                sInput.type = 'text';
-                sInput.className = 'form-control';
-                sInput.placeholder = 'key or pattern...';
-                sInput.value = key;
-
-                sInput.addEventListener('keydown', function(e) {{
-                    if (e.key === 'Enter') {{
-                        e.preventDefault();
-                        showPage(0, db, sInput.value);
+                    if (isList) {{
+                        renderTableBody(currentDataKeys);
+                    }} else if (isTree) {{
+                        renderTreeView(currentDataKeys);
                     }}
-                }});
 
-                const sBtn = document.createElement('button');
-                sBtn.innerText = 'Search';
-                sBtn.className = 'btn btn-outline-success btn-sm ms-2';
-                sBtn.onclick = () => showPage(0, db, sInput.value);
+                    setupNextButton(currentCursor);
+                }}
 
-                searchContainer.append(sInput, sBtn);
-            }}
+                {BuildBulkActionsScript()} 
+            ";
+        }
 
-            function toggleView(view) {{
-              document.getElementById('listView').classList.toggle('d-none', view !== 'list');
-              document.getElementById('treeView').classList.toggle('d-none', view !== 'tree');
-            }}
+        private static string BuildGlobalVariablesScript()
+        {
+            return $@"
+                let isLoading = false;
+                let currentDataKeys = [];
+                let currentCursor = 0;
+                let toggleViewActive = 'tree';
+            ";
+        }
 
+        private static string BuildDOMContentLoaded() => $@"
+            document.addEventListener('DOMContentLoaded', function () {{
+                toggleView('tree');
+                setupNextButton(0);
+                highlightActiveDbAndSize();
+            }});
+        ";
+
+        private static string BuildJsHeader() => $@"
             function highlightActiveDbAndSize() {{
                 const params = new URLSearchParams(window.location.search);
                 const db = params.get('db') || '0';
-                document.getElementById('nav' + db)?.classList.add('active');
-                document.getElementById('size' + (params.get('size') || '10'))?.classList.add('active');
-            }}
+                const size = params.get('size') || '500';
 
-            function addRowClickListeners() {{
-                document.querySelectorAll('#redisTable tbody tr').forEach(row => {{
-                    row.addEventListener('click', function () {{
-                        const detail = JSON.parse(this.dataset.value);
-                        renderDetailPanel(detail);
-                    }});
+                document.querySelectorAll('.dropdown-item').forEach(el => {{
+                    el.classList.remove('bg-light', 'text-dark', 'fw-semibold');
                 }});
+
+                document.getElementById('nav' + db)?.classList.add('bg-light', 'text-dark', 'fw-semibold');
+                document.getElementById('size' + size)?.classList.add('active');
+                showPage(0, params.get('db'));
             }}
 
-            function setupNextButton() {{
+
+            function setupNextButton(cursor) {{
                 const btnNext = document.getElementById('btnNext');
-                btnNext.onclick = () => nextPage();
-                btnNext.hidden = ('0' === '{next}');
+                btnNext.onclick = () => nextPage(cursor);
+                btnNext.hidden = (0 === cursor);
             }}
 
-            function renderDetailPanel2(detail) {{
-                const valueEl = document.getElementById('valueContent');
-                if (!valueEl) return;
-                valueEl.removeAttribute('data-highlighted');
-                valueEl.className = 'language-json';
-                valueEl.textContent = JSON.stringify(detail, null, 2);
-                hljs.highlightElement(valueEl);
+            function nextPage(cursor) {{
+                showPage(cursor, new URLSearchParams(window.location.search).get('db') || '0');
             }}
-            
+
+            function setSize(size) {{
+                document.querySelectorAll('.btn-group button').forEach(btn => {{
+                    btn.classList.remove('active');
+                }});
+
+                const activeBtn = document.getElementById('size' + size);
+                if (activeBtn) {{
+                    activeBtn.classList.add('active');
+                }}
+                const url = new URL(window.location);
+                const params = url.searchParams;
+                if (!params.has('db')) {{
+                    params.set('db', '0');
+                }}
+
+                showPage(0, params.get('db'));
+            }}
+        ";
+
+        private static string BuildJsEditor() => $@"
             let jsonEditorInstance;
 
             function onViewerChange(mode) {{
@@ -243,17 +326,19 @@ namespace RedisUI.Pages
               }}
             }}
 
-            function renderDetailPanel(detail) {{
-              window.currentDetail = detail; // guardamos para re-render con JSONEditor
+            function renderDetailPanel(key, detail) {{
+              window.currentDetail = detail;
+              window.currentKey = key;
+
+              document.getElementById('currentKeyName').textContent = key || '[none]';
 
               const mode = document.getElementById('jsonModeSelector').value;
+
               if (mode === 'highlight') {{
-                // Highlight.js
                 const codeEl = document.getElementById('valueContent');
                 codeEl.textContent = JSON.stringify(detail, null, 2);
                 hljs.highlightElement(codeEl);
               }} else {{
-                // JSONEditor
                 ensureJsonEditor(mode);
                 jsonEditorInstance.set(detail);
               }}
@@ -270,47 +355,338 @@ namespace RedisUI.Pages
                 jsonEditorInstance.setMode(mode);
               }}
             }}
+        ";
 
-            function showPage(cursor, db, key) {{
-                const params = new URLSearchParams();
-                params.set('cursor', cursor);
-                params.set('db', db);
-                const activeSizeBtn = document.querySelector('.btn-group button.active');
-                const size = activeSizeBtn ? activeSizeBtn.textContent : '10';
-                params.set('size', size);
-                if (key) params.set('key', key);
-                window.location = window.location.pathname + '?' + params.toString();
+        private static string BuildJsTable() => $@"
+            function showTableLoading() {{
+              const tbody = document.getElementById(""tableBody"");
+              if (tbody) {{
+                tbody.innerHTML = `
+                  <tr>
+                    <td colspan=""5"" class=""text-center"">
+                      <div class=""spinner-border text-primary me-2"" role=""status"" style=""width: 1.2rem; height: 1.2rem;"">
+                        <span class=""visually-hidden"">Loading...</span>
+                      </div>
+                      Loading keys...
+                    </td>
+                  </tr>
+                `;
+              }}
             }}
 
-            function nextPage() {{
-                showPage({next}, new URLSearchParams(window.location.search).get('db') || '0', new URLSearchParams(window.location.search).get('key') || '');
-            }}
+            function renderTableBody(keys) {{
+              const tbody = document.getElementById(""tableBody"");
+              tbody.innerHTML = """";
 
-            function confirmDelete(del) {{
-                if (!confirm(`Are you sure to delete key '${{del}}'?`)) return;
-                fetch(window.location.href, {{
-                    method: 'POST',
-                    body: JSON.stringify({{ DelKey: del }}),
-                    headers: {{ 'Content-Type': 'application/json' }}
-                }}).then(() => window.location.reload());
-            }}
+              keys.forEach(key => {{
+                const tr = document.createElement(""tr"");
+                tr.setAttribute(""data-value"", JSON.stringify(key.detail.value));
+                tr.setAttribute(""data-key"", key.name);
 
-            function saveKey() {{
-                fetch(window.location.href, {{
-                    method: 'POST',
-                    body: JSON.stringify({{
-                        InsertKey: document.getElementById('insertKey').value,
-                        InsertValue: document.getElementById('insertValue').value
-                    }}),
-                    headers: {{ 'Content-Type': 'application/json' }}
-                }}).then(() => window.location.reload());
-            }}
+                tr.innerHTML = `
+                  <td><input type=""checkbox"" class=""keyCheckbox"" value=""${{key.name}}"" /></td> 
+                  <td><span class=""badge ${{key.detail.badge}}"">${{key.detail.type.toUpperCase()}}</span></td>
+                  <td>${{key.name}}</td>
+                  <td>${{key.detail.length}}</td>
+                  <td>${{key.detail.ttl ? `${{key.detail.ttl}} s` : ""&#9854;""}}</td>
+                  <td class=""text-center"">
+                    <a onclick=""confirmDelete('${{key.name}}')"" class=""btn btn-sm btn-outline-danger"">
+                      <i class='bi bi-trash-fill'></i>
+                    </a>
+                  </td>
+                `;
 
-            function checkRequired() {{
-                const k = document.getElementById('insertKey').value;
-                const v = document.getElementById('insertValue').value;
-                document.getElementById('btnSave').disabled = !(k && v);
+                tr.addEventListener(""click"", function (e) {{
+                  if (e.target.closest(""input, button, a"")) return;
+
+                  const value = this.getAttribute(""data-value"");
+                  const key = this.getAttribute(""data-key"");
+
+                  try {{
+                    renderDetailPanel(key, JSON.parse(value));
+                  }} catch (err) {{
+                    console.error(""Invalid JSON in data-value"", err);
+                  }}
+                }});
+
+                tbody.appendChild(tr);
+              }});
             }}
         ";
+
+        private static string BuildTreeView() => $@"
+
+            function showTreeViewLoading() {{
+              const container = document.getElementById(""treeView"");
+              if (container) {{
+                container.innerHTML = `
+                  <div class=""text-center text-muted p-3"">
+                    <div class=""spinner-border text-success me-2"" role=""status"" style=""width: 1.2rem; height: 1.2rem;"">
+                      <span class=""visually-hidden"">Loading...</span>
+                    </div>
+                    Loading key tree...
+                  </div>
+                `;
+              }}
+            }}
+
+            function renderTreeView(keys) {{
+              const tree = buildTreeStructure(keys);
+              const container = document.getElementById(""treeView"");
+              container.innerHTML = """"; // limpiar
+              const ul = document.createElement(""ul"");
+              ul.className = ""list-group"";
+              renderTreeRecursive(tree, ul);
+              container.appendChild(ul);
+            }}
+
+            function buildTreeStructure(keys) {{
+              const root = {{}};
+              keys.forEach(key => {{
+                const parts = key.name.split("":"");
+                let node = root;
+                for (const part of parts) {{
+                  node.children = node.children || {{}};
+                  node.children[part] = node.children[part] || {{}};
+                  node = node.children[part];
+                }}
+                node.key = key;
+              }});
+              return root;
+            }}
+
+            function renderTreeRecursive(node, parentElement, prefix = """", depth = 0, indexRef = {{ i: 0 }}) {{
+              if (!node.children) return;
+
+              const childrenKeys = Object.keys(node.children).sort();
+
+              for (const childName of childrenKeys) {{
+                const childNode = node.children[childName];
+                const fullPath = prefix ? `${{prefix}}:${{childName}}` : childName;
+                const zebraClass = indexRef.i++ % 2 === 0 ? ""bg-light"" : ""bg-white"";
+
+                const li = document.createElement(""li"");
+                li.className = `list-group-item p-2 ${{zebraClass}}`;
+
+                if (childNode.children) {{
+                  const collapseId = `collapse_${{fullPath.replace(/:/g, ""_"")}}`;
+                  const iconId = `icon_${{collapseId}}`;
+                  const expanded = depth <= 0;
+
+                  const divToggle = document.createElement(""div"");
+                  divToggle.className = ""d-flex justify-content-between align-items-center"";
+                  divToggle.setAttribute(""data-bs-toggle"", ""collapse"");
+                  divToggle.setAttribute(""href"", `#${{collapseId}}`);
+                  divToggle.setAttribute(""role"", ""button"");
+
+                  divToggle.innerHTML = `
+                    <a class=""fw-bold text-decoration-none text-dark"">
+                      <span id='${{iconId}}' class='me-1'><i class='bi bi-chevron-right'></i> <i class='bi bi-folder'></i></span>${{childName}}
+                    </a>`;
+
+                  const collapseDiv = document.createElement(""div"");
+                  collapseDiv.className = `collapse ms-3 ${{expanded ? ""show"" : """"}}`;
+                  collapseDiv.id = collapseId;
+
+                  const ul = document.createElement(""ul"");
+                  ul.className = ""list-group list-group-flush"";
+                  renderTreeRecursive(childNode, ul, fullPath, depth + 1, indexRef);
+                  collapseDiv.appendChild(ul);
+
+                  li.appendChild(divToggle);
+                  li.appendChild(collapseDiv);
+                  collapseDiv.addEventListener(""shown.bs.collapse"", () => {{
+                    document.getElementById(iconId).innerHTML = ""<i class='bi bi-chevron-down'></i> <i class='bi bi-folder2-open'></i>"";
+                  }});
+                  collapseDiv.addEventListener(""hidden.bs.collapse"", () => {{
+                    document.getElementById(iconId).innerHTML = ""<i class='bi bi-chevron-right'></i> <i class='bi bi-folder'></i>"";
+                  }});
+                }}
+
+                if (childNode.key) {{
+                    const key = childNode.key;
+
+                    const detailSpan = document.createElement(""span"");
+                    detailSpan.className = ""text-break"";
+                    detailSpan.style.cursor = ""pointer"";
+                    detailSpan.dataset.key = key.name;
+                    detailSpan.dataset.value = JSON.stringify(key.detail.value);
+
+                    const checkbox = document.createElement(""input"");
+                    checkbox.type = ""checkbox"";
+                    checkbox.className = ""form-check-input me-2 keyCheckbox"";
+                    checkbox.value = key.name;
+                    checkbox.onclick = (e) => e.stopPropagation();
+
+                    const badge = `<span class='badge ${{key.detail.badge}}'>${{key.detail.type.toUpperCase()}}</span>`;
+                    detailSpan.innerHTML = `
+                    <i class='bi bi-key-fill'></i> ${{badge}} ${{key.name}}
+                    <small class=""text-muted"">
+                        TTL: <span class=""badge bg-secondary"">${{key.detail.ttl ?? ""&#9854;""}}</span> |
+                        Size: ${{key.detail.length}} KB
+                    </small>`;
+
+                    detailSpan.onclick = () => renderDetailPanel(detailSpan.dataset.key, JSON.parse(detailSpan.dataset.value));
+
+                  
+                    const deleteBtn = document.createElement(""a"");
+                    deleteBtn.className = ""btn btn-sm btn-outline-danger"";
+                    deleteBtn.innerHTML = ""<i class='bi bi-trash-fill'></i>"";
+                    deleteBtn.onclick = () => confirmDelete(key.name);
+
+                    const divContentLeft = document.createElement(""div"");
+                    divContentLeft.className = ""d-flex align-items-center gap-2"";
+                    divContentLeft.appendChild(checkbox);
+                    divContentLeft.appendChild(detailSpan);
+
+                    const divKey = document.createElement(""div"");
+                    divKey.className = ""d-flex justify-content-between align-items-center w-100"";
+                    divKey.appendChild(divContentLeft);
+                    divKey.appendChild(deleteBtn);
+
+                    li.appendChild(divKey);
+                }}
+
+                parentElement.appendChild(li);
+              }}
+            }}
+        ";
+
+        private static string BuildNavScript()
+        {
+            return $@"
+                function setdb(db){{
+                    var currentPath = window.location.href.replace(window.location.search, '');
+                    window.location = currentPath.replace('#', '') + '?db=' + db;
+                }}
+            ";
+        }
+
+        private static string BuildBulkActionsScript()
+        {
+            return $@"
+                document.addEventListener(""change"", function(e) {{
+                  if (e.target.id === ""selectAllKeys"") {{
+                    const all = document.querySelectorAll("".keyCheckbox"");
+                    all.forEach(cb => cb.checked = e.target.checked);
+                  }}
+                }});
+
+                function getSelectedKeys() {{
+                  return Array.from(document.querySelectorAll("".keyCheckbox:checked""))
+                              .map(cb => cb.value);
+                }}
+
+                function bulkDelete() {{
+                  const keys = getSelectedKeys();
+                  if (!keys.length) return alert(""No keys selected."");
+                  if (!confirm(`Delete ${{keys.length}} keys?`)) return;
+
+                  fetch(`${{API_PATH_BASE_URL}}/bulk-operation`, {{
+                    method: 'POST',
+                    headers: {{ ""Content-Type"": ""application/json"" }},
+                    body: JSON.stringify({{ operation: ""Delete"", keys: keys }})
+                  }}).then(r => r.text()).then(msg => {{
+                    alert(msg);
+                    showPage(0);
+                  }});
+                }}
+
+                function bulkExpire() {{
+                  const keys = getSelectedKeys();
+                  if (!keys.length) return alert(""No keys selected."");
+                  const ttl = prompt(""TTL en segundos:"");
+                  if (!ttl || isNaN(ttl)) return alert(""TTL inválido."");
+
+                  fetch(`${{API_PATH_BASE_URL}}/bulk-operation`, {{
+                    method: 'POST',
+                    headers: {{ ""Content-Type"": ""application/json"" }},
+                    body: JSON.stringify({{ operation: ""Expire"", keys: keys, args: parseInt(ttl) }})
+                  }}).then(r => r.text()).then(msg => {{
+                    alert(msg);
+                    showPage(0);
+                  }});
+                }}
+
+                function bulkRename() {{
+                  const keys = getSelectedKeys();
+                  if (!keys.length) return alert(""No keys selected."");
+                  const prefix = prompt(""Nuevo prefijo:"");
+                  if (!prefix) return;
+
+                  fetch(`${{API_PATH_BASE_URL}}/bulk-operation`, {{
+                    method: 'POST',
+                    headers: {{ ""Content-Type"": ""application/json"" }},
+                    body: JSON.stringify({{ operation: ""Rename"", keys: keys, args: {{ prefix: prefix }} }})
+                  }}).then(r => r.text()).then(msg => {{
+                    alert(msg);
+                    showPage(0);
+                  }});
+                }}
+            ";
+        }
+
+        private static string BuildScriptActions() => $@"
+
+            function showPage(cursor = 0, db = '0') {{
+              if (isLoading) return;
+
+              isLoading = true;
+              showTableLoading();
+              showTreeViewLoading();
+
+              const params = new URLSearchParams();
+              params.set('cursor', cursor);
+              params.set('db', db);
+
+              const activeSizeBtn = document.querySelector('.btn-group button.active');
+              const size = activeSizeBtn ? activeSizeBtn.textContent : '500';
+              params.set('size', size);
+
+              const key = document.getElementById('searchInput')?.value || '';
+              params.set('key', key);
+
+              const type = document.getElementById('keyTypeFilter')?.value || '';
+              params.set('type', type);
+
+              fetch(`${{API_PATH_BASE_URL}}/keys?${{params.toString()}}`)
+                .then(res => res.json())
+                .then(data => {{
+                  currentDataKeys = data.keys;
+                  currentCursor = data.cursor;
+                  toggleView(toggleViewActive);
+                }})
+                .catch(err => {{
+                  console.error(""Error loading keys"", err);
+                }})
+                .finally(() => {{
+                  isLoading = false;
+                }});
+            }}
+
+
+            function confirmDelete(delKey) {{
+                if (!confirm(`Are you sure to delete key '${{delKey}}'?`)) return;
+
+                fetch(`${{API_PATH_BASE_URL}}/keys/${{encodeURIComponent(delKey)}}`, {{
+                    method: 'DELETE'
+                }})
+                .then(response => {{                    
+                    if (response.status != 204) throw new Error('Failed to delete key');
+                    const url = new URL(window.location);
+                    const params = url.searchParams;
+                    if (!params.has('db')) {{
+                        params.set('db', '0');
+                    }}
+                    showPage(0, params.get('db'));
+                }})
+                .catch(err => {{
+                    console.error(""Error deleting key:"", err);
+                    alert(""An error occurred while deleting the key."");
+                }});
+            }}
+        ";
+
+        #endregion JS
     }
 }

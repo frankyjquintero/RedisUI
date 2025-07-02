@@ -9,7 +9,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace RedisUI
@@ -27,7 +26,10 @@ namespace RedisUI
 
         public async Task InvokeAsync(HttpContext context)
         {
-            if (!IsPathMatch(context))
+            var path = context.Request.Path.ToString();
+
+            #region Verificación de acceso
+            if (!IsPathMatch(path))
             {
                 await _next(context);
                 return;
@@ -37,11 +39,11 @@ namespace RedisUI
             {
                 return;
             }
+            #endregion
 
-            int currentDb = RedisUIMiddleware.GetCurrentDb(context);
+            int currentDb = GetCurrentDb(context);
             var redisDb = RedisConnectionFactory.Connection.GetDatabase(currentDb);
-
-            var (dbSize, keyspaces) = await RedisUIMiddleware.GetDbInfo(redisDb);
+            var (dbSize, keyspaces) = await ServerHelper.GetDbInfo(redisDb);
 
             var layoutModel = new LayoutModel
             {
@@ -50,30 +52,264 @@ namespace RedisUI
                 DbSize = dbSize.ToString()
             };
 
-            if (IsStatisticsRequest(context))
+            var routeHandlers = new (Func<string, bool> PathMatch, string Method, Func<Task> Handler)[]
             {
-                await RenderStatistics(context, redisDb, keyspaces, layoutModel);
+                // Estadísticas
+                (
+                    IsStatisticsRequest,
+                    HttpMethods.Get,
+                    () => RenderStatistics(context, redisDb, keyspaces, layoutModel)
+                ),
+                // Índice
+                (
+                    IsIndexRequest,
+                    HttpMethods.Get,
+                    () => RenderIndex(context, layoutModel)
+                ),
+                // logout
+                (
+                    p => p == $"{_settings.Path}/logout",
+                    HttpMethods.Get,
+                    () => HandleLogout(context)
+                ),
+                // Obtener claves
+                (
+                    p => p == $"{_settings.Path}/keys",
+                    HttpMethods.Get,
+                    () => HandleGetKeys(context, redisDb)
+                ),
+                // Obtener clave específica
+                (
+                    p => p.StartsWith($"{_settings.Path}/keys/"),
+                    HttpMethods.Get,
+                    async () =>
+                    {
+                        var key = Uri.UnescapeDataString(path[(($"{_settings.Path}/keys/").Length)..]);
+                        await HandleGetKey(context, redisDb, key);
+                    }
+                ),
+                // Crear/Actualizar clave
+                (
+                    p => p.StartsWith($"{_settings.Path}/keys/"),
+                    HttpMethods.Put,
+                    () => HandleSetKey(context, redisDb)
+                ),
+                (
+                    p => p.StartsWith($"{_settings.Path}/keys"),
+                    HttpMethods.Post,
+                    () => HandleSetKey(context, redisDb)
+                ),
+                // Eliminar clave
+                (
+                    p => p.StartsWith($"{_settings.Path}/keys/"),
+                    HttpMethods.Delete,
+                    async () =>
+                    {
+                        var key = Uri.UnescapeDataString(path[(($"{_settings.Path}/keys/").Length)..]);
+                        await HandleDeleteKey(context, redisDb, key);
+                    }
+                ),
+                (
+                    p => p == $"{_settings.Path}/delete-by-pattern",
+                    HttpMethods.Post,
+                    () => HandleDeleteByPattern(context, redisDb)
+                ),
+                (
+                    p => p == $"{_settings.Path}/bulk-operation",
+                    HttpMethods.Post,
+                    () => HandleBulkOperation(context, redisDb)
+                ),
+            };
+
+            foreach (var (PathMatch, Method, Handler) in routeHandlers)
+            {
+                if (PathMatch(path) && context.Request.Method == Method)
+                {
+                    await Handler();
+                    return;
+                }
+            }
+
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+        }
+
+        private static async Task HandleLogout(HttpContext context)
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            context.Response.Headers.WWWAuthenticate = "Basic realm=\"Redis Dashboard\"";
+            await context.Response.WriteAsync("Logged out.");
+        }
+
+
+        private static async Task HandleGetKeys(HttpContext context, IDatabase redisDb)
+        {
+            var query = new RequestQueryParamsModel(context.Request);
+            var (skeys, nextCursor) = await ServerHelper.ScanKeys(redisDb, query);
+            var keys = skeys.Select(x => new KeyModel { Name = x }).ToList();
+            await ServerHelper.ResolveKeyDetails(redisDb, keys);
+
+            if (!string.IsNullOrWhiteSpace(query.KeyType))
+            {
+                keys = keys
+                    .Where(k => k.KeyType.ToString().Equals(query.KeyType, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsJsonAsync(new
+            {
+                keys = keys,
+                cursor = nextCursor
+            });
+        }
+
+        private static async Task HandleGetKey(HttpContext context, IDatabase redisDb, string key)
+        {
+            var type = await redisDb.KeyTypeAsync(key);
+            var value = await RedisValueHelper.GetValue(redisDb, key, type);
+            var ttl = await redisDb.KeyTimeToLiveAsync(key);
+            var length = await RedisValueHelper.GetLength(value);
+            var badge = RedisValueHelper.GetBadge(type);
+
+            var model = new KeyModel
+            {
+                Name = key,
+                KeyType = type,
+                Detail = new RedisKeyDetails
+                {
+                    Value = value,
+                    Length = length,
+                    TTL = ttl?.TotalSeconds,
+                    Badge = badge
+                }
+            };
+
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsJsonAsync(model);
+        }
+
+        private static async Task HandleSetKey(HttpContext context, IDatabase redisDb)
+        {
+            var model = await JsonSerializer.DeserializeAsync<KeyInputModel>(context.Request.Body,
+            new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+            await RedisValueHelper.SetValue(redisDb, model);
+            context.Response.StatusCode = StatusCodes.Status201Created;
+        }
+
+        private static async Task HandleDeleteKey(HttpContext context, IDatabase redisDb, string key)
+        {
+            await redisDb.KeyDeleteAsync(key);
+            context.Response.StatusCode = StatusCodes.Status204NoContent;
+        }
+
+        private static async Task HandleDeleteByPattern(HttpContext context, IDatabase redisDb)
+        {
+            var query = new RequestQueryParamsModel(context.Request);
+
+            // Flush mode
+            if (context.Request.Query.TryGetValue("flush", out var flushValue) && flushValue == "true")
+            {
+                await redisDb.ExecuteAsync("FLUSHDB");
+                context.Response.StatusCode = StatusCodes.Status200OK;
+                await context.Response.WriteAsync("Database flushed.");
                 return;
             }
 
-            var queryParams = new RequestQueryParamsModel(context.Request);
+            if (string.IsNullOrWhiteSpace(query.SearchKey))
+            {
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                await context.Response.WriteAsync("Missing required pattern (SearchKey).");
+                return;
+            }
 
-            if (HttpMethods.IsPost(context.Request.Method))
-                await RedisUIMiddleware.ProcessPostBody(context, redisDb);
+            var (keysToDelete, _) = await ServerHelper.ScanKeys(redisDb, query);
 
-            var (keys, nextCursor) = await ScanKeys(redisDb, queryParams);
+            if (!keysToDelete.Any())
+            {
+                context.Response.StatusCode = StatusCodes.Status204NoContent;
+                return;
+            }
 
-            await RedisUIMiddleware.ResolveKeyDetails(redisDb, keys);
+            var deletedCount = await ServerHelper.DeleteKeys(redisDb, keysToDelete);
 
-            layoutModel.Section = Main.Build(keys, nextCursor);
-            await context.Response.WriteAsync(Layout.Build(layoutModel, _settings));
+            context.Response.StatusCode = StatusCodes.Status200OK;
+            await context.Response.WriteAsync($"{deletedCount} keys deleted.");
         }
 
-        private bool IsPathMatch(HttpContext context) =>
-            context.Request.Path.ToString().StartsWith(_settings.Path);
+        private static async Task HandleBulkOperation(HttpContext context, IDatabase redisDb)
+        {
+            var operationRequest = await JsonSerializer.DeserializeAsync<BulkOperationModel>(
+                context.Request.Body,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (operationRequest == null || string.IsNullOrEmpty(operationRequest.Operation) || operationRequest.Keys == null)
+            {
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                await context.Response.WriteAsync("Invalid request.");
+                return;
+            }
+
+            var user = context.User?.Identity?.Name ?? "anonymous";
+            var timestamp = DateTime.UtcNow;
+
+            switch (operationRequest.Operation.ToLower())
+            {
+                case "delete":
+                    var deleted = await ServerHelper.BulkDeleteKeys(redisDb, operationRequest.Keys);
+                    Console.WriteLine($"[Bulk-Delete] {deleted} keys deleted by {user} at {timestamp}");
+                    context.Response.StatusCode = StatusCodes.Status200OK;
+                    await context.Response.WriteAsync($"{deleted} keys deleted.");
+                    break;
+
+                case "expire":
+                    if (operationRequest.Args == null || !int.TryParse(operationRequest.Args.ToString(), out int ttl))
+                    {
+                        context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                        await context.Response.WriteAsync("Missing or invalid TTL in 'Args'.");
+                        return;
+                    }
+                    var expired = await ServerHelper.BulkExpireKeys(redisDb, operationRequest.Keys, ttl);
+                    Console.WriteLine($"[Bulk-Expire] {expired} keys set to expire in {ttl}s by {user} at {timestamp}");
+                    context.Response.StatusCode = StatusCodes.Status200OK;
+                    await context.Response.WriteAsync($"{expired} keys updated with TTL.");
+                    break;
+
+                case "rename":
+                    if (operationRequest.Args is not JsonElement el || !el.TryGetProperty("prefix", out var prefixElement))
+                    {
+                        context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                        await context.Response.WriteAsync("Missing prefix in 'Args'.");
+                        return;
+                    }
+                    string prefix = prefixElement.GetString();
+                    var renamed = await ServerHelper.BulkRenameKeys(redisDb, operationRequest.Keys, prefix);
+                    Console.WriteLine($"[Bulk-Rename] {renamed} keys renamed with prefix '{prefix}' by {user} at {timestamp}");
+                    context.Response.StatusCode = StatusCodes.Status200OK;
+                    await context.Response.WriteAsync($"{renamed} keys renamed.");
+                    break;
+
+                default:
+                    context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                    await context.Response.WriteAsync("Unsupported operation.");
+                    break;
+            }
+        }
+
+
+        private bool IsPathMatch(string path) =>
+            path.ToString().StartsWith(_settings.Path);
 
         private bool IsAuthorized(HttpContext context) =>
             _settings.AuthorizationFilter == null || _settings.AuthorizationFilter.Authorize(context);
+
+        private bool IsStatisticsRequest(string path) =>
+            path == $"{_settings.Path}/statistics";
+
+        private bool IsIndexRequest(string path) =>
+            (path.ToString() == _settings.Path || path.ToString() == _settings.Path + "/");
 
         private static int GetCurrentDb(HttpContext context)
         {
@@ -81,26 +317,6 @@ namespace RedisUI
                 return parsedDb;
             return 0;
         }
-
-        private static async Task<(object dbSize, List<KeyspaceModel> keyspaces)> GetDbInfo(IDatabase redisDb)
-        {
-            var dbSizeTask = redisDb.ExecuteAsync("DBSIZE");
-            var keyspaceTask = redisDb.ExecuteAsync("INFO", "KEYSPACE");
-            await Task.WhenAll(dbSizeTask, keyspaceTask);
-
-            var keyspaces = keyspaceTask.Result
-                .ToString()
-                .Replace("# Keyspace", "")
-                .Split(new string[] { "\r\n" }, StringSplitOptions.None)
-                .Where(item => !string.IsNullOrEmpty(item))
-                .Select(KeyspaceModel.Instance)
-                .ToList();
-
-            return (dbSizeTask.Result, keyspaces);
-        }
-
-        private bool IsStatisticsRequest(HttpContext context) =>
-            context.Request.Path.ToString() == $"{_settings.Path}/statistics";
 
         private async Task RenderStatistics(HttpContext context, IDatabase redisDb, List<KeyspaceModel> keyspaces, LayoutModel layoutModel)
         {
@@ -121,84 +337,15 @@ namespace RedisUI
             };
 
             layoutModel.Section = Statistics.Build(model);
+            context.Response.ContentType = "text/html";
             await context.Response.WriteAsync(Layout.Build(layoutModel, _settings));
         }
 
-        private static async Task ProcessPostBody(HttpContext context, IDatabase redisDb)
+        private async Task RenderIndex(HttpContext context, LayoutModel layoutModel)
         {
-            context.Request.EnableBuffering();
-            using var reader = new StreamReader(context.Request.Body, leaveOpen: true);
-            var body = await reader.ReadToEndAsync();
-            context.Request.Body.Position = 0;
-
-            if (string.IsNullOrWhiteSpace(body)) return;
-
-            if (JsonSerializer.Deserialize<PostModel>(body) is not { } postModel) return;
-
-            if (!string.IsNullOrWhiteSpace(postModel.DelKey))
-                await redisDb.KeyDeleteAsync(postModel.DelKey);
-
-            if (!string.IsNullOrWhiteSpace(postModel.InsertKey) &&
-                !string.IsNullOrWhiteSpace(postModel.InsertValue))
-            {
-                await redisDb.StringSetAsync(postModel.InsertKey, postModel.InsertValue);
-            }
-        }
-
-        private async Task<(List<KeyModel> keys, long nextCursor)> ScanKeys(IDatabase redisDb, RequestQueryParamsModel queryParams)
-        {
-            const int MAX_SCAN_LIMIT = 1_000_000;
-            var allMatches = new List<string>();
-            long scanCursor = queryParams.Cursor;
-            long nextCursor = 0;
-
-            if (string.IsNullOrEmpty(queryParams.SearchKey))
-            {
-                var result = await redisDb.ExecuteAsync("SCAN", scanCursor.ToString(), "COUNT", queryParams.PageSize.ToString());
-                var innerResult = (RedisResult[])result;
-                scanCursor = long.Parse((string)innerResult[0]);
-                allMatches = ((string[])innerResult[1]).ToList();
-                nextCursor = scanCursor;
-            }
-            else
-            {
-                do
-                {
-                    var result = await redisDb.ExecuteAsync("SCAN", scanCursor.ToString(), "MATCH", queryParams.SearchKey, "COUNT", 1000);
-                    var innerResult = (RedisResult[])result;
-                    scanCursor = long.Parse((string)innerResult[0]);
-                    var partial = (string[])innerResult[1];
-                    allMatches.AddRange(partial);
-
-                    if (allMatches.Count >= queryParams.PageSize || scanCursor == 0 || allMatches.Count >= MAX_SCAN_LIMIT)
-                        break;
-                } while (true);
-
-                nextCursor = scanCursor;
-            }
-
-            var pagedKeys = allMatches.Take(queryParams.PageSize).ToList();
-            var keys = pagedKeys.Select(x => new KeyModel { Name = x }).ToList();
-            return (keys, nextCursor);
-        }
-
-        private static async Task ResolveKeyDetails(IDatabase redisDb, List<KeyModel> keys)
-        {
-            int maxConcurrency = Math.Max(1, Environment.ProcessorCount);
-            var semaphore = new SemaphoreSlim(maxConcurrency);
-            await Parallel.ForEachAsync(keys, async (key, ct) =>
-            {
-                await semaphore.WaitAsync(ct);
-                try
-                {
-                    key.KeyType = await redisDb.KeyTypeAsync(key.Name);
-                    key.Detail = await RedisKeyValueResolver.ResolveDetailedAsync(redisDb, key.Name);
-                }
-                finally
-                {
-                    semaphore.Release();
-                }
-            });
+            layoutModel.Section = Main.BuildBase(_settings);
+            context.Response.ContentType = "text/html";
+            await context.Response.WriteAsync(Layout.Build(layoutModel, _settings));
         }
     }
 }
